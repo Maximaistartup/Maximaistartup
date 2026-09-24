@@ -1656,7 +1656,12 @@ export function getMetricDefinition(key) {
   );
 }
 
-
+calculateMetrics
+attachIdealRanges
+getMetricDefinition
+getMetricsByCategory
+getProfileMetrics
+getFrontalMetrics
 // ============================================================
 // END OF FACET METRICS ENGINE
 // ============================================================
