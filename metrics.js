@@ -1,1804 +1,304 @@
-/*
-  FACET METRIC ENGINE
-
-  IMPORTANT:
-  Coordinates come directly from MediaPipe Face Landmarker.
-
-  x and y are normalized image coordinates.
-  Therefore:
-
-      distance(A,B)
-
-  by itself is NOT a physical measurement.
-
-  FACET therefore prefers:
-
-      distance(A,B) / distance(C,D)
-
-  and angles.
-
-  No universal 140 mm face-width assumption is used.
-*/
-
-
 /* =========================================================
-   BASIC GEOMETRY
+   FACET METRIC ENGINE  (build 3.1.0)
+   Scale-independent facial geometry.
+   Input landmarks MUST be in pixel space ({x, y}), not the
+   normalized 0..1 space MediaPipe returns; otherwise angles and
+   distances are distorted on non-square images. app.js converts.
 ========================================================= */
 
-function point(lm, index) {
-
-  return lm[index];
-}
-
-
-function distance(a, b) {
-
-  if (!a || !b) return NaN;
-
-  return Math.hypot(
-    a.x - b.x,
-    a.y - b.y
-  );
-}
-
-
-function ratio(a, b) {
-
-  if (
-    !Number.isFinite(a) ||
-    !Number.isFinite(b) ||
-    b === 0
-  ) {
-    return NaN;
-  }
-
-  return a / b;
-}
-
-
-function midpoint(a, b) {
-
-  if (!a || !b) return null;
-
-  return {
-    x: (a.x + b.x) / 2,
-    y: (a.y + b.y) / 2,
-    z: (a.z + b.z) / 2
-  };
-}
-
-
-function vector(a, b) {
-
-  return {
-    x: b.x - a.x,
-    y: b.y - a.y
-  };
-}
-
-
-function vectorLength(v) {
-
-  return Math.hypot(v.x, v.y);
-}
-
-
-function dot(a, b) {
-
-  return a.x * b.x + a.y * b.y;
-}
-
-
-function angleBetweenVectors(a, b) {
-
-  const denominator =
-    vectorLength(a) *
-    vectorLength(b);
-
-  if (denominator === 0) {
-    return NaN;
-  }
-
-  const value =
-    Math.max(
-      -1,
-      Math.min(
-        1,
-        dot(a, b) / denominator
-      )
-    );
-
-  return Math.acos(value) * 180 / Math.PI;
-}
-
-
-function angle(a, b, c) {
-
-  if (!a || !b || !c) {
-    return NaN;
-  }
-
-  return angleBetweenVectors(
-    vector(b, a),
-    vector(b, c)
-  );
-}
-
-
-function signedAngle(a, b, c) {
-
-  if (!a || !b || !c) {
-    return NaN;
-  }
-
-  const ba = vector(b, a);
-  const bc = vector(b, c);
-
-  const cross =
-    ba.x * bc.y -
-    ba.y * bc.x;
-
-  const dotProduct =
-    dot(ba, bc);
-
-  return Math.atan2(
-    cross,
-    dotProduct
-  ) * 180 / Math.PI;
-}
-
-
-function lineDistance(pointValue, lineA, lineB) {
-
-  if (!pointValue || !lineA || !lineB) {
-    return NaN;
-  }
-
-  const numerator =
-    Math.abs(
-      (lineB.y - lineA.y) * pointValue.x -
-      (lineB.x - lineA.x) * pointValue.y +
-      lineB.x * lineA.y -
-      lineB.y * lineA.x
-    );
-
-  const denominator =
-    distance(lineA, lineB);
-
-  if (denominator === 0) {
-    return NaN;
-  }
-
-  return numerator / denominator;
-}
-
-
-function signedLineDistance(pointValue, lineA, lineB) {
-
-  if (!pointValue || !lineA || !lineB) {
-    return NaN;
-  }
-
-  const numerator =
-    (lineB.y - lineA.y) * pointValue.x -
-    (lineB.x - lineA.x) * pointValue.y +
-    lineB.x * lineA.y -
-    lineB.y * lineA.x;
-
-  const denominator =
-    distance(lineA, lineB);
-
-  if (denominator === 0) {
-    return NaN;
-  }
-
-  return numerator / denominator;
-}
-
-
-function finite(value) {
-
-  return Number.isFinite(value);
-}
-
-
-/* =========================================================
-   LANDMARKS
-========================================================= */
-
-const L = {
-
-  forehead: 10,
-  glabella: 9,
-  nasion: 168,
-  noseBridge: 1,
-  noseTip: 4,
-  subnasale: 2,
-
-  upperLip: 13,
-  lowerLip: 14,
-  mouth: 0,
-
-  chin: 152,
-  menton: 175,
-
-  leftEyeInner: 133,
-  rightEyeInner: 362,
-
-  leftEyeOuter: 33,
-  rightEyeOuter: 263,
-
-  leftEyeTop: 159,
-  rightEyeTop: 386,
-
-  leftEyeBottom: 145,
-  rightEyeBottom: 374,
-
-  leftBrow: 70,
-  rightBrow: 300,
-
-  leftCheek: 234,
-  rightCheek: 454,
-
-  leftJaw: 172,
-  rightJaw: 397,
-
-  leftEar: 127,
-  rightEar: 356,
-
-  leftOrbit: 33,
-  rightOrbit: 263,
-
-  leftRamus: 172,
-  rightRamus: 397
+/* ---------- geometry ---------- */
+
+const P = (lm, i) => {
+  const p = lm && lm[i];
+  return p ? { x: p.x, y: p.y } : null;
 };
+const d = (a, b) => (a && b ? Math.hypot(a.x - b.x, a.y - b.y) : NaN);
+const ratio = (a, b) =>
+  Number.isFinite(a) && Number.isFinite(b) && Math.abs(b) > 1e-9 ? a / b : NaN;
+const vec = (a, b) => (a && b ? { x: b.x - a.x, y: b.y - a.y } : null);
+const mid = (a, b) => (a && b ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : null);
+const RAD = 180 / Math.PI;
+
+function angV(u, v) {
+  if (!u || !v) return NaN;
+  const lu = Math.hypot(u.x, u.y);
+  const lv = Math.hypot(v.x, v.y);
+  if (!lu || !lv) return NaN;
+  const c = (u.x * v.x + u.y * v.y) / (lu * lv);
+  return Math.acos(Math.max(-1, Math.min(1, c))) * RAD;
+}
+const angABC = (a, b, c) => angV(vec(b, a), vec(b, c));
+
+/* Signed distance of p from line a->b. Line drawn top -> bottom on a face
+   looking toward +x: positive = in FRONT of the line. */
+function signedDist(p, a, b) {
+  if (!p || !a || !b) return NaN;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const n = Math.hypot(dx, dy);
+  if (!n) return NaN;
+  return (dx * (a.y - p.y) - (a.x - p.x) * dy) / n;
+}
+
+/* Lean of segment (lower -> upper) away from vertical, positive = leaning back */
+const fromVertical = (lower, upper) =>
+  lower && upper ? Math.atan2(lower.x - upper.x, lower.y - upper.y) * RAD : NaN;
+
+
+/* ---------- frontal ---------- */
+
+function frontalValues(lm) {
+  const p = (i) => P(lm, i);
+  const fh = p(10), gl = p(9), sn = p(2), men = p(152);
+  const W = d(p(234), p(454));
+  const H = d(fh, men);
+  const upper = d(fh, gl);
+  const middle = d(gl, sn);
+  const lower = d(sn, men);
+  const eyeAvg = (d(p(33), p(133)) + d(p(263), p(362))) / 2;
+
+  // outer-end-up tilt of a brow, degrees
+  const tilt = (inner, outer) =>
+    inner && outer
+      ? Math.atan2(inner.y - outer.y, Math.abs(inner.x - outer.x)) * RAD
+      : NaN;
+
+  return {
+    facialWidthToHeight: ratio(W, H),
+    facialHeightToWidth: ratio(H, W),
+    upperMiddleThirdRatio: ratio(upper, middle),
+    middleLowerThirdRatio: ratio(middle, lower),
+    facialThirds: ratio(upper + middle, lower),
+    eyeSpacingRatio: ratio(d(p(133), p(362)), eyeAvg),
+    eyeWidthRatio: ratio(eyeAvg, W),
+    mouthWidthRatio: ratio(d(p(61), p(291)), W),
+    noseWidthRatio: ratio(d(p(129), p(358)), W),
+    eyebrowTilt: tilt(p(107), p(70)) - tilt(p(336), p(300)),
+    eyeLevelAsymmetry: ratio(Math.abs(p(33).y - p(263).y), H),
+    mouthLevelAsymmetry: ratio(Math.abs(p(61).y - p(291).y), H)
+  };
+}
+
+
+/* ---------- profile ---------- */
+
+/* Mirror so the face always looks toward +x, and pick the camera-facing side.
+   The near-side ear landmark sits farther BACK than the far-side one. */
+function prepareProfile(lm) {
+  let sx = 0;
+  for (const q of lm) sx += q.x;
+  const meanX = sx / lm.length;
+  const facingRight = lm[4].x >= meanX;
+  const pts = lm.map((q) => ({ x: facingRight ? q.x : -q.x, y: q.y }));
+  const sideA = pts[127].x <= pts[356].x;
+  const idx = sideA
+    ? { ear: 127, eye: 33, jaw: 172, ala: 129 }
+    : { ear: 356, eye: 263, jaw: 397, ala: 358 };
+  return { pts, idx };
+}
+
+function profileValues(lm) {
+  const { pts, idx } = prepareProfile(lm);
+  const p = (i) => pts[i];
+
+  const fh = p(10), fore = p(151), gl = p(9), nas = p(168), dors = p(195);
+  const tip = p(4), sn = p(2), ul = p(0), ll = p(17);
+  const sulcus = p(200), pog = p(175), men = p(152);
+  const ear = p(idx.ear), eye = p(idx.eye), jaw = p(idx.jaw), ala = p(idx.ala);
+
+  const F = vec(ear, eye);                       // Frankfort proxy (ear -> orbit)
+  const faceH = d(nas, men);                     // normalizer for all lengths
+  const pct = (v) => ratio(v, faceH) * 100;
+  const lipFront = ul.x >= ll.x ? ul : ll;
+  const sMid = mid(sn, tip);
+
+  const Fn = Math.hypot(F.x, F.y);
+  const recession = Fn
+    ? ((pog.x - nas.x) * F.x + (pog.y - nas.y) * F.y) / Fn
+    : NaN;
+
+  return {
+    nasalWH: NaN,                                // needs transverse width
+    noseTipRotation: Math.atan2(sn.y - tip.y, tip.x - sn.x) * RAD,
+    facialConvexityGlabella: angABC(gl, sn, pog),
+    totalFacialConvexity: angABC(gl, tip, pog),
+    submentalCervicalAngle: NaN,                 // needs neck landmarks
+    nasalTipAngle: angABC(dors, tip, sn),
+    facialConvexityNasion: angABC(nas, sn, pog),
+    nasofrontalAngle: angABC(gl, nas, dors),
+    zAngle: angV(F, vec(pog, lipFront)),
+    browridgeInclination: fromVertical(gl, fore),
+    frankfortRecession: pct(recession),
+    upperForeheadSlope: fromVertical(fore, fh),
+    nasomentalAngle: angABC(nas, tip, pog),
+    nasolabialAngle: angABC(tip, sn, ul),
+    orbitalVector: NaN,                          // needs cornea + malar points
+    mandibularPlaneAngle: angV(F, vec(jaw, men)),
+    ramusMandibleRatio: ratio(d(ear, jaw), d(jaw, men)),
+    nasalProjection: ratio(tip.x - ala.x, d(nas, tip)),
+    frankfortTipAngle: angV(F, vec(nas, tip)),
+    gonialAngle: angABC(ear, jaw, men),
+    facialDepthHeightRatio: ratio(d(ear, tip), faceH),
+    interiorMidfaceProjectionAngle: NaN,         // needs malar landmark
+    anteriorFacialDepth: NaN,                    // clinically a mm measure
+    nasofacialAngle: angV(vec(nas, tip), vec(nas, pog)),
+    lowerLipSLine: pct(signedDist(ll, sMid, pog)),
+    upperLipSLine: pct(signedDist(ul, sMid, pog)),
+    lowerLipELine: pct(signedDist(ll, tip, pog)),
+    upperLipELine: pct(signedDist(ul, tip, pog)),
+    lowerLipBurstone: pct(signedDist(ll, sn, pog)),
+    upperLipBurstone: pct(signedDist(ul, sn, pog)),
+    holdawayHLine: pct(signedDist(ll, ul, pog)),
+    mentolabialAngle: angABC(ll, sulcus, pog),
+    gonionMouthLine: ratio(d(jaw, ul), faceH)
+  };
+}
 
 
 /* =========================================================
-   DEFINITIONS
+   DEFINITIONS  (single source of truth: metadata + reference range)
+   Ranges are PROVISIONAL, configurable reference values.
+   unit: "deg" | "ratio" | "pct" (% of nasion-to-menton distance)
 ========================================================= */
 
-const DEFINITIONS = [
+const D = (key, name, category, requires, unit, ideal, description, note = "") => ({
+  key, name, category,
+  requiresFrontal: requires === "frontal",
+  requiresProfile: requires === "profile",
+  unit, ideal, description, note
+});
 
-  {
-    id: "oneEyeApart",
-    name: "One Eye Apart Test",
-    category: "Facial Proportions",
-    description:
-      "Intercanthal distance relative to one eye width.",
-    requiresProfile: false,
-    unit: "ratio",
-    ideal: [0.80, 1.20]
-  },
+const DEFS = [
+  /* frontal */
+  D("facialWidthToHeight", "Facial Width : Height Ratio", "Facial Proportions", "frontal", "ratio", [0.72, 0.88], "Cheek-to-cheek width relative to forehead-to-chin height."),
+  D("facialHeightToWidth", "Facial Height : Width Ratio", "Facial Proportions", "frontal", "ratio", [1.14, 1.39], "Forehead-to-chin height relative to cheek-to-cheek width."),
+  D("upperMiddleThirdRatio", "Upper : Middle Third Ratio", "Facial Thirds", "frontal", "ratio", [0.90, 1.10], "Forehead-top to glabella, relative to glabella to subnasale. The mesh has no true hairline point."),
+  D("middleLowerThirdRatio", "Middle : Lower Third Ratio", "Facial Thirds", "frontal", "ratio", [0.90, 1.10], "Glabella-to-subnasale relative to subnasale-to-menton."),
+  D("facialThirds", "Facial Thirds Balance", "Facial Thirds", "frontal", "ratio", [1.80, 2.20], "Upper + middle third relative to the lower third."),
+  D("eyeSpacingRatio", "Interocular Spacing Ratio", "Eyes", "frontal", "ratio", [0.80, 1.20], "Inner-canthus distance relative to average eye width."),
+  D("eyeWidthRatio", "Average Eye Width : Face Width", "Eyes", "frontal", "ratio", [0.18, 0.26], "Average eye width relative to cheek-to-cheek width."),
+  D("mouthWidthRatio", "Mouth Width : Face Width", "Mouth", "frontal", "ratio", [0.28, 0.42], "Mouth-corner distance relative to cheek-to-cheek width."),
+  D("noseWidthRatio", "Nose Width : Face Width", "Nose", "frontal", "ratio", [0.18, 0.28], "Alar width relative to cheek-to-cheek width."),
+  D("eyebrowTilt", "Eyebrow Tilt Asymmetry", "Brows", "frontal", "deg", [-5, 5], "Difference between the outer-end-up tilt of the two brows."),
+  D("eyeLevelAsymmetry", "Eye Level Asymmetry", "Symmetry", "frontal", "ratio", [0, 0.025], "Vertical difference between outer eye corners, relative to facial height."),
+  D("mouthLevelAsymmetry", "Mouth Level Asymmetry", "Symmetry", "frontal", "ratio", [0, 0.025], "Vertical difference between mouth corners, relative to facial height."),
 
-  {
-    id: "facialWidthHeight",
-    name: "Facial Width / Height",
-    category: "Facial Proportions",
-    description:
-      "Bizygomatic facial width divided by upper facial height.",
-    requiresProfile: false,
-    unit: "ratio",
-    ideal: [0.72, 0.82]
-  },
-
-  {
-    id: "middleThird",
-    name: "Middle Third",
-    category: "Facial Proportions",
-    description:
-      "Nasion-to-subnasale relative to total forehead-to-menton height.",
-    requiresProfile: false,
-    unit: "ratio",
-    ideal: [0.30, 0.37]
-  },
-
-  {
-    id: "lowerThird",
-    name: "Lower Third",
-    category: "Facial Proportions",
-    description:
-      "Subnasale-to-menton relative to total facial height.",
-    requiresProfile: false,
-    unit: "ratio",
-    ideal: [0.30, 0.37]
-  },
-
-  {
-    id: "eyeSpacing",
-    name: "Interpupillary / Eye Spacing",
-    category: "Eyes",
-    description:
-      "Relative spacing between the eyes.",
-    requiresProfile: false,
-    unit: "ratio",
-    ideal: [0.85, 1.15]
-  },
-
-  {
-    id: "eyeAspectLeft",
-    name: "Left Eye Aspect Ratio",
-    category: "Eyes",
-    description:
-      "Eye opening height relative to eye width.",
-    requiresProfile: false,
-    unit: "ratio",
-    ideal: [0.22, 0.40]
-  },
-
-  {
-    id: "eyeAspectRight",
-    name: "Right Eye Aspect Ratio",
-    category: "Eyes",
-    description:
-      "Eye opening height relative to eye width.",
-    requiresProfile: false,
-    unit: "ratio",
-    ideal: [0.22, 0.40]
-  },
-
-  {
-    id: "eyebrowTilt",
-    name: "Eyebrow Tilt",
-    category: "Eyes",
-    description:
-      "Difference in eyebrow slope between the two sides.",
-    requiresProfile: false,
-    unit: "degrees",
-    ideal: [-5, 5]
-  },
-
-  {
-    id: "canthalTilt",
-    name: "Canthal Tilt",
-    category: "Eyes",
-    description:
-      "Lateral-to-medial eye corner inclination.",
-    requiresProfile: false,
-    unit: "degrees",
-    ideal: [3, 8]
-  },
-
-  {
-    id: "midfaceRatio",
-    name: "Midface Ratio",
-    category: "Facial Proportions",
-    description:
-      "Interocular width relative to midface vertical height.",
-    requiresProfile: false,
-    unit: "ratio",
-    ideal: [0.90, 1.10]
-  },
-
-  {
-    id: "mouthWidthFaceWidth",
-    name: "Mouth Width / Face Width",
-    category: "Lower Face",
-    description:
-      "Mouth width relative to facial width.",
-    requiresProfile: false,
-    unit: "ratio",
-    ideal: [0.42, 0.52]
-  },
-
-  {
-    id: "jawWidthFaceWidth",
-    name: "Jaw Width / Face Width",
-    category: "Jaw",
-    description:
-      "Bigonial width relative to bizygomatic width.",
-    requiresProfile: false,
-    unit: "ratio",
-    ideal: [0.70, 0.88]
-  },
-
-  {
-    id: "cheekboneJawRatio",
-    name: "Cheekbone / Jaw Ratio",
-    category: "Jaw",
-    description:
-      "Bizygomatic width divided by bigonial width.",
-    requiresProfile: false,
-    unit: "ratio",
-    ideal: [1.10, 1.35]
-  },
-
-  {
-    id: "facialSymmetry",
-    name: "Facial Symmetry",
-    category: "Symmetry",
-    description:
-      "Normalized left/right landmark asymmetry.",
-    requiresProfile: false,
-    unit: "ratio",
-    ideal: [0, 0.04]
-  },
-
-
-  /* PROFILE */
-
-  {
-    id: "nasalWH",
-    name: "Nasal W : H Ratio",
-    category: "Profile",
-    description:
-      "Nasal width divided by nasal height. Requires frontal nasal width.",
-    requiresProfile: false,
-    unit: "ratio",
-    ideal: [0.65, 0.85]
-  },
-
-  {
-    id: "noseTipRotation",
-    name: "Nose Tip Rotation Angle",
-    category: "Profile",
-    description:
-      "Approximate nasal tip rotation from subnasale, tip and columellar geometry.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [20, 30]
-  },
-
-  {
-    id: "facialConvexityGlabella",
-    name: "Facial Convexity (Glabella)",
-    category: "Profile",
-    description:
-      "Profile facial convexity using glabella, subnasale and chin.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [165, 175]
-  },
-
-  {
-    id: "totalFacialConvexity",
-    name: "Total Facial Convexity",
-    category: "Profile",
-    description:
-      "Overall facial convexity from forehead through chin.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [135, 150]
-  },
-
-  {
-    id: "submentalCervicalAngle",
-    name: "Submental Cervical Angle",
-    category: "Profile",
-    description:
-      "Not reliably measurable because MediaPipe does not provide a true neck landmark.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [105, 125]
-  },
-
-  {
-    id: "nasalTipAngle",
-    name: "Nasal Tip Angle",
-    category: "Profile",
-    description:
-      "Approximate nasal tip angle.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [110, 125]
-  },
-
-  {
-    id: "facialConvexityNasion",
-    name: "Facial Convexity (Nasion)",
-    category: "Profile",
-    description:
-      "Profile convexity around nasion.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [165, 175]
-  },
-
-  {
-    id: "nasofrontalAngle",
-    name: "Nasofrontal Angle",
-    category: "Profile",
-    description:
-      "Forehead-to-nasal bridge angle.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [115, 130]
-  },
-
-  {
-    id: "zAngle",
-    name: "Z Angle",
-    category: "Profile",
-    description:
-      "Approximate profile soft-tissue Z angle.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [70, 80]
-  },
-
-  {
-    id: "browridgeInclination",
-    name: "Browridge Inclination Angle",
-    category: "Profile",
-    description:
-      "Approximate brow-to-orbital inclination.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [15, 25]
-  },
-
-  {
-    id: "recessionFrankfort",
-    name: "Recession Relative to Frankfort Plane",
-    category: "Profile",
-    description:
-      "Cannot be expressed as true millimetres without image calibration.",
-    requiresProfile: true,
-    unit: "unavailable",
-    ideal: [0, 6]
-  },
-
-  {
-    id: "upperForeheadSlope",
-    name: "Upper Forehead Slope",
-    category: "Profile",
-    description:
-      "Forehead inclination relative to the facial vertical.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [0, 10]
-  },
-
-  {
-    id: "nasomentalAngle",
-    name: "Nasomental Angle",
-    category: "Profile",
-    description:
-      "Nasal projection relationship to the chin.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [125, 135]
-  },
-
-  {
-    id: "nasolabialAngle",
-    name: "Nasolabial Angle",
-    category: "Profile",
-    description:
-      "Angle between columellar/subnasal region and upper lip.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [95, 110]
-  },
-
-  {
-    id: "orbitalVector",
-    name: "Orbital Vector",
-    category: "Profile",
-    description:
-      "Relative anterior/posterior orbital position.",
-    requiresProfile: true,
-    unit: "ratio",
-    ideal: [-1, 3]
-  },
-
-  {
-    id: "mandibularPlaneAngle",
-    name: "Mandibular Plane Angle",
-    category: "Profile",
-    description:
-      "Mandibular plane relative to facial horizontal.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [20, 32]
-  },
-
-  {
-    id: "ramusMandibleRatio",
-    name: "Ramus : Mandible Ratio",
-    category: "Profile",
-    description:
-      "Vertical ramus length relative to mandibular body length.",
-    requiresProfile: true,
-    unit: "ratio",
-    ideal: [0.60, 0.75]
-  },
-
-  {
-    id: "nasalProjection",
-    name: "Nasal Projection",
-    category: "Profile",
-    description:
-      "Nasal projection relative to nasal base.",
-    requiresProfile: true,
-    unit: "ratio",
-    ideal: [0.65, 0.80]
-  },
-
-  {
-    id: "frankfortTipAngle",
-    name: "Frankfort-Tip Angle",
-    category: "Profile",
-    description:
-      "Approximate facial horizontal to nasal tip relationship.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [35, 50]
-  },
-
-  {
-    id: "gonialAngle",
-    name: "Gonial Angle",
-    category: "Profile",
-    description:
-      "Approximate mandibular angle.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [110, 125]
-  },
-
-  {
-    id: "facialDepthHeight",
-    name: "Facial Depth : Height Ratio",
-    category: "Profile",
-    description:
-      "Anteroposterior facial depth relative to facial height.",
-    requiresProfile: true,
-    unit: "ratio",
-    ideal: [1.15, 1.35]
-  },
-
-  {
-    id: "interiorMidfaceProjection",
-    name: "Interior Midface Projection Angle",
-    category: "Profile",
-    description:
-      "Approximate midface projection angle.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [58, 65]
-  },
-
-  {
-    id: "anteriorFacialDepth",
-    name: "Anterior Facial Depth",
-    category: "Profile",
-    description:
-      "Approximate anterior facial depth angle.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [60, 68]
-  },
-
-  {
-    id: "nasofacialAngle",
-    name: "Nasofacial Angle",
-    category: "Profile",
-    description:
-      "Nasal projection relative to the facial plane.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [29, 35]
-  },
-
-  {
-    id: "lowerLipSLine",
-    name: "Lower Lip S-Line Position",
-    category: "Profile",
-    description:
-      "Normalized lower lip position relative to the S-line.",
-    requiresProfile: true,
-    unit: "ratio",
-    ideal: [-0.03, 0.03]
-  },
-
-  {
-    id: "upperLipSLine",
-    name: "Upper Lip S-Line Position",
-    category: "Profile",
-    description:
-      "Normalized upper lip position relative to the S-line.",
-    requiresProfile: true,
-    unit: "ratio",
-    ideal: [-0.04, 0.02]
-  },
-
-  {
-    id: "lowerLipELine",
-    name: "Lower Lip E-Line Position",
-    category: "Profile",
-    description:
-      "Normalized lower lip position relative to the E-line.",
-    requiresProfile: true,
-    unit: "ratio",
-    ideal: [-0.04, 0.01]
-  },
-
-  {
-    id: "upperLipELine",
-    name: "Upper Lip E-Line Position",
-    category: "Profile",
-    description:
-      "Normalized upper lip position relative to the E-line.",
-    requiresProfile: true,
-    unit: "ratio",
-    ideal: [-0.06, 0]
-  },
-
-  {
-    id: "lowerLipBurstone",
-    name: "Lower Lip Burstone Line",
-    category: "Profile",
-    description:
-      "Normalized lower lip position relative to a Burstone-type reference line.",
-    requiresProfile: true,
-    unit: "ratio",
-    ideal: [-0.04, 0.01]
-  },
-
-  {
-    id: "upperLipBurstone",
-    name: "Upper Lip Burstone Line",
-    category: "Profile",
-    description:
-      "Normalized upper lip position relative to a Burstone-type reference line.",
-    requiresProfile: true,
-    unit: "ratio",
-    ideal: [-0.05, 0]
-  },
-
-  {
-    id: "holdawayHLine",
-    name: "Holdaway H-Line",
-    category: "Profile",
-    description:
-      "Normalized lip relationship to a Holdaway-type reference line.",
-    requiresProfile: true,
-    unit: "ratio",
-    ideal: [-0.02, 0.02]
-  },
-
-  {
-    id: "mentolabialAngle",
-    name: "Mentolabial Angle",
-    category: "Profile",
-    description:
-      "Angle formed by lower lip, labiomental region and chin.",
-    requiresProfile: true,
-    unit: "degrees",
-    ideal: [120, 135]
-  },
-
-  {
-    id: "gonionMouthLine",
-    name: "Gonion → Mouth Line",
-    category: "Profile",
-    description:
-      "Normalized gonion-to-mouth distance.",
-    requiresProfile: true,
-    unit: "ratio",
-    ideal: [0.18, 0.30]
-  }
+  /* profile */
+  D("nasalWH", "Nasal W : H Ratio", "Nose", "profile", "ratio", [0.65, 0.85], "Nasal width relative to height.", "Unavailable: transverse nasal width cannot be measured from a side profile."),
+  D("noseTipRotation", "Nose Tip Rotation Angle", "Nose", "profile", "deg", [20, 30], "Inclination of the subnasale-to-tip line above horizontal."),
+  D("facialConvexityGlabella", "Facial Convexity (Glabella)", "Facial Convexity", "profile", "deg", [165, 175], "Angle glabella - subnasale - pogonion."),
+  D("totalFacialConvexity", "Total Facial Convexity", "Facial Convexity", "profile", "deg", [135, 150], "Angle glabella - nasal tip - pogonion."),
+  D("submentalCervicalAngle", "Submental Cervical Angle", "Jaw / Neck", "profile", "deg", [105, 125], "Angle between the chin-neck and neck lines.", "Unavailable: MediaPipe provides no neck landmarks."),
+  D("nasalTipAngle", "Nasal Tip Angle", "Nose", "profile", "deg", [110, 125], "Angle dorsum - tip - subnasale."),
+  D("facialConvexityNasion", "Facial Convexity (Nasion)", "Facial Convexity", "profile", "deg", [165, 175], "Angle nasion - subnasale - pogonion."),
+  D("nasofrontalAngle", "Nasofrontal Angle", "Nose", "profile", "deg", [115, 130], "Angle glabella - nasion - nasal dorsum."),
+  D("zAngle", "Z Angle", "Profile", "profile", "deg", [70, 80], "Angle between the Frankfort proxy (ear to orbit) and the pogonion-to-lip line."),
+  D("browridgeInclination", "Browridge Inclination Angle", "Forehead / Brow", "profile", "deg", [15, 25], "Lean from vertical of the glabella-to-mid-forehead segment."),
+  D("frankfortRecession", "Recession Relative to Frankfort Plane", "Profile", "profile", "pct", [-2, 3], "Pogonion position ahead of nasion along the Frankfort proxy, as % of nasion-menton distance."),
+  D("upperForeheadSlope", "Upper Forehead Slope", "Forehead / Brow", "profile", "deg", [0, 10], "Lean from vertical of the upper forehead segment."),
+  D("nasomentalAngle", "Nasomental Angle", "Nose / Chin", "profile", "deg", [125, 135], "Angle nasion - nasal tip - pogonion."),
+  D("nasolabialAngle", "Nasolabial Angle", "Nose / Lips", "profile", "deg", [95, 110], "Angle nasal tip - subnasale - upper lip."),
+  D("orbitalVector", "Orbital Vector", "Orbit", "profile", "ratio", null, "Globe projection relative to the malar prominence.", "Unavailable: requires corneal and malar landmarks the mesh does not provide."),
+  D("mandibularPlaneAngle", "Mandibular Plane Angle", "Mandible", "profile", "deg", [20, 32], "Angle between the Frankfort proxy and the gonion-to-menton line."),
+  D("ramusMandibleRatio", "Ramus : Mandible Ratio", "Mandible", "profile", "ratio", [0.60, 0.75], "Ear-to-gonion length relative to gonion-to-menton length."),
+  D("nasalProjection", "Nasal Projection (Goode)", "Nose", "profile", "ratio", [0.50, 0.65], "Tip projection ahead of the alar base, relative to nasion-to-tip length."),
+  D("frankfortTipAngle", "Frankfort-tip Angle", "Profile", "profile", "deg", [35, 50], "Angle between the Frankfort proxy and the nasion-to-tip line."),
+  D("gonialAngle", "Gonial Angle", "Mandible", "profile", "deg", [110, 125], "Angle ear-proxy - gonion - menton."),
+  D("facialDepthHeightRatio", "Facial Depth : Height Ratio", "Facial Proportions", "profile", "ratio", [1.15, 1.35], "Ear-to-nasal-tip depth relative to nasion-to-menton height."),
+  D("interiorMidfaceProjectionAngle", "Interior Midface Projection Angle", "Midface", "profile", "deg", null, "Angular projection of the midface.", "Unavailable: requires a malar landmark the mesh does not provide."),
+  D("anteriorFacialDepth", "Anterior Facial Depth", "Facial Proportions", "profile", "deg", null, "Anterior facial depth.", "Unavailable: clinically a millimetre measure and cannot be derived without calibration."),
+  D("nasofacialAngle", "Nasofacial Angle", "Nose", "profile", "deg", [29, 35], "Angle between the nasal dorsum and the nasion-pogonion line."),
+  D("lowerLipSLine", "Lower Lip S-Line Position", "Lips", "profile", "pct", [-1.7, 1.7], "Lower lip vs. line from pogonion to the nose-tip/subnasale midpoint. + = ahead of line. % of nasion-menton."),
+  D("upperLipSLine", "Upper Lip S-Line Position", "Lips", "profile", "pct", [-2.5, 0.8], "Upper lip vs. the S-line. + = ahead of line. % of nasion-menton."),
+  D("lowerLipELine", "Lower Lip E-Line Position", "Lips", "profile", "pct", [-3.3, 0.8], "Lower lip vs. nose-tip-to-pogonion line. + = ahead of line. % of nasion-menton."),
+  D("upperLipELine", "Upper Lip E-Line Position", "Lips", "profile", "pct", [-5, 0], "Upper lip vs. the E-line. + = ahead of line. % of nasion-menton."),
+  D("lowerLipBurstone", "Lower Lip Burstone Line", "Lips", "profile", "pct", [0.4, 2.3], "Lower lip vs. subnasale-to-pogonion line. + = ahead of line. % of nasion-menton."),
+  D("upperLipBurstone", "Upper Lip Burstone Line", "Lips", "profile", "pct", [1.3, 3.0], "Upper lip vs. the Burstone line. + = ahead of line. % of nasion-menton."),
+  D("holdawayHLine", "Holdaway H-Line", "Lips / Profile", "profile", "pct", [-1.7, 1.7], "Lower lip vs. line from pogonion to upper lip. % of nasion-menton."),
+  D("mentolabialAngle", "Mentolabial Angle", "Lips / Chin", "profile", "deg", [120, 135], "Angle lower lip - mentolabial sulcus - pogonion."),
+  D("gonionMouthLine", "Gonion → Mouth Line", "Mandible / Lips", "profile", "ratio", [0.55, 0.80], "Gonion-to-upper-lip distance relative to nasion-to-menton distance.")
 ];
-
-
-/* =========================================================
-   FRONT METRICS
-========================================================= */
-
-function calculateFrontalMetrics(lm) {
-
-  const p = i => point(lm, i);
-
-  const faceWidth =
-    distance(
-      p(L.leftCheek),
-      p(L.rightCheek)
-    );
-
-  const faceHeight =
-    distance(
-      p(L.forehead),
-      p(L.menton)
-    );
-
-  const eyeWidthLeft =
-    distance(
-      p(L.leftEyeInner),
-      p(L.leftEyeOuter)
-    );
-
-  const eyeWidthRight =
-    distance(
-      p(L.rightEyeInner),
-      p(L.rightEyeOuter)
-    );
-
-  const intercanthal =
-    distance(
-      p(L.leftEyeInner),
-      p(L.rightEyeInner)
-    );
-
-  const interocular =
-    distance(
-      p(L.leftEyeOuter),
-      p(L.rightEyeOuter)
-    );
-
-  const middleHeight =
-    distance(
-      p(L.nasion),
-      p(L.subnasale)
-    );
-
-  const lowerHeight =
-    distance(
-      p(L.subnasale),
-      p(L.menton)
-    );
-
-  const mouthWidth =
-    distance(
-      p(78),
-      p(308)
-    );
-
-  const jawWidth =
-    distance(
-      p(L.leftJaw),
-      p(L.rightJaw)
-    );
-
-  const cheekWidth =
-    distance(
-      p(L.leftCheek),
-      p(L.rightCheek)
-    );
-
-
-  const leftEyeHeight =
-    distance(
-      p(L.leftEyeTop),
-      p(L.leftEyeBottom)
-    );
-
-  const rightEyeHeight =
-    distance(
-      p(L.rightEyeTop),
-      p(L.rightEyeBottom)
-    );
-
-
-  const leftCanthal =
-    Math.atan2(
-      p(L.leftEyeOuter).y -
-      p(L.leftEyeInner).y,
-
-      p(L.leftEyeOuter).x -
-      p(L.leftEyeInner).x
-    ) * 180 / Math.PI;
-
-
-  const rightCanthal =
-    Math.atan2(
-      p(L.rightEyeInner).y -
-      p(L.rightEyeOuter).y,
-
-      p(L.rightEyeInner).x -
-      p(L.rightEyeOuter).x
-    ) * 180 / Math.PI;
-
-
-  const leftBrowTilt =
-    Math.atan2(
-      p(L.leftBrow).y -
-      p(L.leftEyeOuter).y,
-
-      p(L.leftBrow).x -
-      p(L.leftEyeOuter).x
-    ) * 180 / Math.PI;
-
-
-  const rightBrowTilt =
-    Math.atan2(
-      p(L.rightBrow).y -
-      p(L.rightEyeOuter).y,
-
-      p(L.rightBrow).x -
-      p(L.rightEyeOuter).x
-    ) * 180 / Math.PI;
-
-
-  const eyeAspectLeft =
-    ratio(
-      leftEyeHeight,
-      eyeWidthLeft
-    );
-
-  const eyeAspectRight =
-    ratio(
-      rightEyeHeight,
-      eyeWidthRight
-    );
-
-
-  const symmetry =
-    ratio(
-      Math.abs(
-        distance(
-          p(L.leftCheek),
-          p(L.leftJaw)
-        ) -
-        distance(
-          p(L.rightCheek),
-          p(L.rightJaw)
-        )
-      ),
-      faceWidth
-    );
-
-
-  const nasalWidth =
-    distance(
-      p(129),
-      p(358)
-    );
-
-  const nasalHeight =
-    distance(
-      p(L.nasion),
-      p(L.subnasale)
-    );
-
-
-  return {
-
-    oneEyeApart: {
-      ...DEFINITIONS.find(x => x.id === "oneEyeApart"),
-      value:
-        ratio(
-          intercanthal,
-          (eyeWidthLeft + eyeWidthRight) / 2
-        )
-    },
-
-    facialWidthHeight: {
-      ...DEFINITIONS.find(x => x.id === "facialWidthHeight"),
-      value:
-        ratio(
-          faceWidth,
-          faceHeight
-        )
-    },
-
-    middleThird: {
-      ...DEFINITIONS.find(x => x.id === "middleThird"),
-      value:
-        ratio(
-          middleHeight,
-          faceHeight
-        )
-    },
-
-    lowerThird: {
-      ...DEFINITIONS.find(x => x.id === "lowerThird"),
-      value:
-        ratio(
-          lowerHeight,
-          faceHeight
-        )
-    },
-
-    eyeSpacing: {
-      ...DEFINITIONS.find(x => x.id === "eyeSpacing"),
-      value:
-        ratio(
-          interocular,
-          faceWidth
-        )
-    },
-
-    eyeAspectLeft: {
-      ...DEFINITIONS.find(x => x.id === "eyeAspectLeft"),
-      value: eyeAspectLeft
-    },
-
-    eyeAspectRight: {
-      ...DEFINITIONS.find(x => x.id === "eyeAspectRight"),
-      value: eyeAspectRight
-    },
-
-    eyebrowTilt: {
-      ...DEFINITIONS.find(x => x.id === "eyebrowTilt"),
-      value:
-        leftBrowTilt -
-        rightBrowTilt
-    },
-
-    canthalTilt: {
-      ...DEFINITIONS.find(x => x.id === "canthalTilt"),
-      value:
-        (leftCanthal + rightCanthal) / 2
-    },
-
-    midfaceRatio: {
-      ...DEFINITIONS.find(x => x.id === "midfaceRatio"),
-      value:
-        ratio(
-          interocular,
-          middleHeight
-        )
-    },
-
-    mouthWidthFaceWidth: {
-      ...DEFINITIONS.find(x => x.id === "mouthWidthFaceWidth"),
-      value:
-        ratio(
-          mouthWidth,
-          faceWidth
-        )
-    },
-
-    jawWidthFaceWidth: {
-      ...DEFINITIONS.find(x => x.id === "jawWidthFaceWidth"),
-      value:
-        ratio(
-          jawWidth,
-          faceWidth
-        )
-    },
-
-    cheekboneJawRatio: {
-      ...DEFINITIONS.find(x => x.id === "cheekboneJawRatio"),
-      value:
-        ratio(
-          cheekWidth,
-          jawWidth
-        )
-    },
-
-    facialSymmetry: {
-      ...DEFINITIONS.find(x => x.id === "facialSymmetry"),
-      value: symmetry
-    },
-
-    nasalWH: {
-      ...DEFINITIONS.find(x => x.id === "nasalWH"),
-      value:
-        ratio(
-          nasalWidth,
-          nasalHeight
-        )
-    }
-  };
-}
-
-
-/* =========================================================
-   PROFILE METRICS
-========================================================= */
-
-function calculateProfileMetrics(lm) {
-
-  const p = i => point(lm, i);
-
-  const forehead = p(L.forehead);
-  const glabella = p(L.glabella);
-  const nasion = p(L.nasion);
-  const noseTip = p(L.noseTip);
-  const subnasale = p(L.subnasale);
-  const upperLip = p(L.upperLip);
-  const lowerLip = p(L.lowerLip);
-  const mouth = p(L.mouth);
-  const chin = p(L.chin);
-  const menton = p(L.menton);
-
-  const facialHeight =
-    distance(
-      forehead,
-      menton
-    );
-
-
-  const noseHeight =
-    distance(
-      nasion,
-      subnasale
-    );
-
-
-  const nasalProjection =
-    Math.abs(
-      noseTip.x -
-      subnasale.x
-    );
-
-
-  const nasalBase =
-    distance(
-      nasion,
-      subnasale
-    );
-
-
-  const noseProjectionRatio =
-    ratio(
-      nasalProjection,
-      nasalBase
-    );
-
-
-  const mandibularPlane =
-    Math.abs(
-      Math.atan2(
-        menton.y - chin.y,
-        menton.x - chin.x
-      ) * 180 / Math.PI
-    );
-
-
-  const ramusLength =
-    distance(
-      p(L.leftRamus),
-      chin
-    );
-
-
-  const mandibularLength =
-    distance(
-      p(L.leftRamus),
-      menton
-    );
-
-
-  const ramusRatio =
-    ratio(
-      ramusLength,
-      mandibularLength
-    );
-
-
-  const gonial =
-    angle(
-      p(L.leftRamus),
-      chin,
-      menton
-    );
-
-
-  const facialConvexityGlabella =
-    angle(
-      glabella,
-      subnasale,
-      chin
-    );
-
-
-  const facialConvexityNasion =
-    angle(
-      nasion,
-      subnasale,
-      chin
-    );
-
-
-  const totalFacialConvexity =
-    angle(
-      forehead,
-      glabella,
-      chin
-    );
-
-
-  const nasofrontal =
-    angle(
-      forehead,
-      nasion,
-      noseTip
-    );
-
-
-  const nasomental =
-    angle(
-      noseTip,
-      subnasale,
-      chin
-    );
-
-
-  const nasolabial =
-    angle(
-      noseTip,
-      subnasale,
-      upperLip
-    );
-
-
-  const nasofacial =
-    angle(
-      nasion,
-      noseTip,
-      chin
-    );
-
-
-  const mentolabial =
-    angle(
-      lowerLip,
-      mouth,
-      chin
-    );
-
-
-  const foreheadSlope =
-    Math.abs(
-      Math.atan2(
-        glabella.y - forehead.y,
-        glabella.x - forehead.x
-      ) * 180 / Math.PI
-    );
-
-
-  const upperForeheadSlope =
-    Math.abs(
-      Math.atan2(
-        glabella.y - forehead.y,
-        glabella.x - forehead.x
-      ) * 180 / Math.PI
-    );
-
-
-  const noseTipRotation =
-    angle(
-      subnasale,
-      noseTip,
-      upperLip
-    );
-
-
-  const nasalTipAngle =
-    angle(
-      noseTip,
-      subnasale,
-      upperLip
-    );
-
-
-  const frankfortTip =
-    angle(
-      p(L.leftEar),
-      p(L.leftOrbit),
-      noseTip
-    );
-
-
-  const facialDepth =
-    Math.abs(
-      glabella.x -
-      chin.x
-    );
-
-
-  const facialDepthHeight =
-    ratio(
-      facialDepth,
-      facialHeight
-    );
-
-
-  const gonionMouth =
-    ratio(
-      distance(
-        p(L.leftRamus),
-        mouth
-      ),
-      facialHeight
-    );
-
-
-  /*
-    True S-line / E-line / Burstone / Holdaway
-    distances normally require calibrated profile
-    cephalometric landmarks.
-
-    We normalize them to facial height rather than
-    pretending they are millimetres.
-  */
-
-  const referenceLine =
-    (a, b) =>
-      signedLineDistance(
-        mouth,
-        a,
-        b
-      );
-
-
-  const sLine =
-    signedLineDistance(
-      lowerLip,
-      noseTip,
-      chin
-    );
-
-
-  const sLineUpper =
-    signedLineDistance(
-      upperLip,
-      noseTip,
-      chin
-    );
-
-
-  const eLine =
-    signedLineDistance(
-      lowerLip,
-      noseTip,
-      chin
-    );
-
-
-  const eLineUpper =
-    signedLineDistance(
-      upperLip,
-      noseTip,
-      chin
-    );
-
-
-  const burstoneLower =
-    signedLineDistance(
-      lowerLip,
-      subnasale,
-      chin
-    );
-
-
-  const burstoneUpper =
-    signedLineDistance(
-      upperLip,
-      subnasale,
-      chin
-    );
-
-
-  const holdaway =
-    signedLineDistance(
-      mouth,
-      noseTip,
-      chin
-    );
-
-
-  const normalized =
-    value =>
-      finite(value)
-        ? value / facialHeight
-        : NaN;
-
-
-  return {
-
-    noseTipRotation: {
-      ...DEFINITIONS.find(x => x.id === "noseTipRotation"),
-      value: noseTipRotation
-    },
-
-    facialConvexityGlabella: {
-      ...DEFINITIONS.find(x => x.id === "facialConvexityGlabella"),
-      value: facialConvexityGlabella
-    },
-
-    totalFacialConvexity: {
-      ...DEFINITIONS.find(x => x.id === "totalFacialConvexity"),
-      value: totalFacialConvexity
-    },
-
-    submentalCervicalAngle: {
-      ...DEFINITIONS.find(x => x.id === "submentalCervicalAngle"),
-      value: NaN,
-      available: false
-    },
-
-    nasalTipAngle: {
-      ...DEFINITIONS.find(x => x.id === "nasalTipAngle"),
-      value: nasalTipAngle
-    },
-
-    facialConvexityNasion: {
-      ...DEFINITIONS.find(x => x.id === "facialConvexityNasion"),
-      value: facialConvexityNasion
-    },
-
-    nasofrontalAngle: {
-      ...DEFINITIONS.find(x => x.id === "nasofrontalAngle"),
-      value: nasofrontal
-    },
-
-    zAngle: {
-      ...DEFINITIONS.find(x => x.id === "zAngle"),
-      value:
-        angle(
-          upperLip,
-          chin,
-          noseTip
-        )
-    },
-
-    browridgeInclination: {
-      ...DEFINITIONS.find(x => x.id === "browridgeInclination"),
-      value:
-        foreheadSlope
-    },
-
-    recessionFrankfort: {
-      ...DEFINITIONS.find(x => x.id === "recessionFrankfort"),
-      value: NaN,
-      available: false
-    },
-
-    upperForeheadSlope: {
-      ...DEFINITIONS.find(x => x.id === "upperForeheadSlope"),
-      value: upperForeheadSlope
-    },
-
-    nasomentalAngle: {
-      ...DEFINITIONS.find(x => x.id === "nasomentalAngle"),
-      value: nasomental
-    },
-
-    nasolabialAngle: {
-      ...DEFINITIONS.find(x => x.id === "nasolabialAngle"),
-      value: nasolabial
-    },
-
-    orbitalVector: {
-      ...DEFINITIONS.find(x => x.id === "orbitalVector"),
-      value:
-        (p(L.leftOrbit).x -
-        p(L.nasion).x) /
-        facialHeight
-    },
-
-    mandibularPlaneAngle: {
-      ...DEFINITIONS.find(x => x.id === "mandibularPlaneAngle"),
-      value: mandibularPlane
-    },
-
-    ramusMandibleRatio: {
-      ...DEFINITIONS.find(x => x.id === "ramusMandibleRatio"),
-      value: ramusRatio
-    },
-
-    nasalProjection: {
-      ...DEFINITIONS.find(x => x.id === "nasalProjection"),
-      value: noseProjectionRatio
-    },
-
-    frankfortTipAngle: {
-      ...DEFINITIONS.find(x => x.id === "frankfortTipAngle"),
-      value: frankfortTip
-    },
-
-    gonialAngle: {
-      ...DEFINITIONS.find(x => x.id === "gonialAngle"),
-      value: gonial
-    },
-
-    facialDepthHeight: {
-      ...DEFINITIONS.find(x => x.id === "facialDepthHeight"),
-      value: facialDepthHeight
-    },
-
-    interiorMidfaceProjection: {
-      ...DEFINITIONS.find(x => x.id === "interiorMidfaceProjection"),
-      value:
-        angle(
-          glabella,
-          nasion,
-          subnasale
-        )
-    },
-
-    anteriorFacialDepth: {
-      ...DEFINITIONS.find(x => x.id === "anteriorFacialDepth"),
-      value:
-        angle(
-          glabella,
-          subnasale,
-          chin
-        )
-    },
-
-    nasofacialAngle: {
-      ...DEFINITIONS.find(x => x.id === "nasofacialAngle"),
-      value: nasofacial
-    },
-
-    lowerLipSLine: {
-      ...DEFINITIONS.find(x => x.id === "lowerLipSLine"),
-      value: normalized(sLine)
-    },
-
-    upperLipSLine: {
-      ...DEFINITIONS.find(x => x.id === "upperLipSLine"),
-      value: normalized(sLineUpper)
-    },
-
-    lowerLipELine: {
-      ...DEFINITIONS.find(x => x.id === "lowerLipELine"),
-      value: normalized(eLine)
-    },
-
-    upperLipELine: {
-      ...DEFINITIONS.find(x => x.id === "upperLipELine"),
-      value: normalized(eLineUpper)
-    },
-
-    lowerLipBurstone: {
-      ...DEFINITIONS.find(x => x.id === "lowerLipBurstone"),
-      value: normalized(burstoneLower)
-    },
-
-    upperLipBurstone: {
-      ...DEFINITIONS.find(x => x.id === "upperLipBurstone"),
-      value: normalized(burstoneUpper)
-    },
-
-    holdawayHLine: {
-      ...DEFINITIONS.find(x => x.id === "holdawayHLine"),
-      value: normalized(holdaway)
-    },
-
-    mentolabialAngle: {
-      ...DEFINITIONS.find(x => x.id === "mentolabialAngle"),
-      value: mentolabial
-    },
-
-    gonionMouthLine: {
-      ...DEFINITIONS.find(x => x.id === "gonionMouthLine"),
-      value: gonionMouth
-    }
-  };
-}
-
-
-/* =========================================================
-   MASTER CALCULATION
-========================================================= */
-
-function calculateMetrics({
-  frontal,
-  profile,
-  scaleMm = null
-}) {
-
-  const frontalMetrics =
-    calculateFrontalMetrics(
-      frontal
-    );
-
-  const profileMetrics =
-    calculateProfileMetrics(
-      profile
-    );
-
-  return {
-    ...frontalMetrics,
-    ...profileMetrics
-  };
-}
-
-
-/* =========================================================
-   REFERENCE COMPARISON
-========================================================= */
-
-function attachIdealRanges(
-  metrics,
-  sex = "male"
-) {
-
-  return Object.fromEntries(
-
-    Object.entries(metrics).map(
-      ([id, metric]) => {
-
-        const definition =
-          DEFINITIONS.find(
-            x => x.id === id
-          );
-
-
-        const output = {
-          ...metric
-        };
-
-
-        if (
-          metric.available === false ||
-          !finite(metric.value)
-        ) {
-
-          output.available = false;
-          output.formattedValue = "Unavailable";
-          output.idealText =
-            definition
-              ? formatIdeal(definition)
-              : "Unavailable";
-          output.status = "unavailable";
-          output.comparison = NaN;
-
-          return [id, output];
-        }
-
-
-        output.available = true;
-
-        output.formattedValue =
-          formatMeasurement(
-            metric.value,
-            metric.unit
-          );
-
-
-        output.idealText =
-          formatIdeal(
-            definition
-          );
-
-
-        const [low, high] =
-          definition.ideal;
-
-
-        const midpoint =
-          (low + high) / 2;
-
-
-        const halfRange =
-          (high - low) / 2;
-
-
-        /*
-          0 = exact midpoint
-          1 = reference boundary
-          >1 = outside reference interval
-        */
-
-        output.comparison =
-          halfRange === 0
-            ? Math.abs(
-                metric.value -
-                midpoint
-              )
-            : Math.abs(
-                metric.value -
-                midpoint
-              ) / halfRange;
-
-
-        output.status =
-          metric.value >= low &&
-          metric.value <= high
-            ? "within"
-            : "outside";
-
-
-        return [id, output];
-      }
-    )
-  );
-}
-
-
-function formatMeasurement(
-  value,
-  unit
-) {
-
-  if (!finite(value)) {
-    return "Unavailable";
-  }
-
-  if (unit === "degrees") {
-
-    return `${value.toFixed(1)}°`;
-  }
-
-  if (unit === "ratio") {
-
-    return value.toFixed(3);
-  }
-
-  if (unit === "unavailable") {
-
-    return "Unavailable";
-  }
-
-  return value.toFixed(3);
-}
-
-
-function formatIdeal(
-  definition
-) {
-
-  if (!definition) {
-    return "No reference";
-  }
-
-  const [low, high] =
-    definition.ideal;
-
-  if (definition.unit === "degrees") {
-
-    return `${low}° – ${high}°`;
-  }
-
-  if (definition.unit === "ratio") {
-
-    return `${low} – ${high}`;
-  }
-
-  return `${low} – ${high}`;
-}
 
 
 /* =========================================================
    PUBLIC API
 ========================================================= */
 
-function getMetricDefinition(id) {
+function calculateMetrics({ frontal, profile, scaleMm = null } = {}) {
+  const fv = frontal ? frontalValues(frontal) : {};
+  const pv = profile ? profileValues(profile) : {};
+  const values = { ...fv, ...pv };
+  const out = {};
 
-  return DEFINITIONS.find(
-    metric => metric.id === id
-  );
+  for (const def of DEFS) {
+    if (!(def.key in values)) continue;
+    out[def.key] = {
+      name: def.name,
+      category: def.category,
+      value: values[def.key],
+      unit: def.unit,
+      description: def.description,
+      note: Number.isFinite(values[def.key]) ? "" : def.note,
+      requiresFrontal: def.requiresFrontal,
+      requiresProfile: def.requiresProfile
+    };
+  }
+  return out;
 }
 
-
-function getMetricsByCategory(category) {
-
-  return DEFINITIONS.filter(
-    metric =>
-      metric.category === category
-  );
+function formatValue(value, unit) {
+  if (!Number.isFinite(value)) return "Unavailable";
+  if (unit === "deg") return `${value.toFixed(2)}°`;
+  if (unit === "pct") return `${value.toFixed(2)}%`;
+  return value.toFixed(3);
 }
 
+const suffix = (unit) => (unit === "deg" ? "°" : unit === "pct" ? "%" : "");
 
-function getProfileMetrics() {
-
-  return DEFINITIONS.filter(
-    metric =>
-      metric.requiresProfile
-  );
+/* 0 = interval midpoint, 1 = boundary, >1 = outside */
+function comparisonDistance(value, low, high) {
+  if (![value, low, high].every(Number.isFinite)) return null;
+  const half = (high - low) / 2;
+  if (half === 0) return value === low ? 0 : Infinity;
+  return Math.abs(value - (low + high) / 2) / half;
 }
 
+function attachIdealRanges(metrics /* , sex = "male" */) {
+  const result = {};
+  for (const [key, m] of Object.entries(metrics)) {
+    const def = DEFS.find((x) => x.key === key);
+    const range = def && def.ideal;
+    const copy = { ...m, ideal: range || null };
 
-function getFrontalMetrics() {
+    copy.formattedValue = formatValue(m.value, m.unit);
+    copy.idealText = range
+      ? `${range[0]}${suffix(m.unit)} – ${range[1]}${suffix(m.unit)}`
+      : "Not specified";
 
-  return DEFINITIONS.filter(
-    metric =>
-      !metric.requiresProfile
-  );
+    if (!range || !Number.isFinite(m.value)) {
+      copy.status = "unavailable";
+      copy.comparison = null;
+    } else {
+      copy.status = m.value >= range[0] && m.value <= range[1] ? "within" : "outside";
+      copy.comparison = comparisonDistance(m.value, range[0], range[1]);
+    }
+    result[key] = copy;
+  }
+  return result;
 }
 
-
-function getMetricDefinitions() {
-
-  return [...DEFINITIONS];
-}
-
+const getMetricDefinitions = () => DEFS.map((x) => ({ ...x }));
+const getMetricDefinition = (key) => DEFS.find((x) => x.key === key) || null;
+const getMetricsByCategory = (c) => DEFS.filter((x) => x.category === c);
+const getProfileMetrics = () => DEFS.filter((x) => x.requiresProfile);
+const getFrontalMetrics = () => DEFS.filter((x) => x.requiresFrontal);
 
 export {
   calculateMetrics,
-  calculateFrontalMetrics,
-  calculateProfileMetrics,
   attachIdealRanges,
   getMetricDefinition,
+  getMetricDefinitions,
   getMetricsByCategory,
   getProfileMetrics,
-  getFrontalMetrics,
-  getMetricDefinitions
+  getFrontalMetrics
 };
