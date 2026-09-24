@@ -1,788 +1,450 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>FACET — Facial Geometry Analysis</title>
+<title>FACET — Facial Analysis</title>
 
 <style>
-
-:root {
-  --bg: #08090c;
-  --panel: #101218;
-  --panel2: #151820;
-  --text: #f5f7fa;
-  --muted: #8d95a5;
-  --line: #242936;
-  --accent: #a8ffcb;
-  --danger: #ff9f9f;
-  --warning: #ffd38a;
+:root{
+  --bg:#08090c;
+  --panel:#101218;
+  --panel2:#151820;
+  --text:#f5f7fa;
+  --muted:#8d95a5;
+  --line:#242936;
+  --accent:#a8ffcb;
+  --accent2:#79a7ff;
+  --danger:#ff8d8d;
 }
 
-* {
-  box-sizing: border-box;
-}
+*{box-sizing:border-box}
 
-body {
-  margin: 0;
+body{
+  margin:0;
   background:
-    radial-gradient(
-      circle at 75% 0%,
-      #17221d 0,
-      #08090c 34%
-    ),
+    radial-gradient(circle at 75% 0%,#17221d 0,#08090c 34%),
     #08090c;
-
-  color: var(--text);
-
-  font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+  color:var(--text);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
 }
 
-button,
-input,
-select {
-  font: inherit;
+button,input{font:inherit;color:inherit}
+
+.app{
+  min-height:100vh;
+  display:flex;
 }
 
-button {
-  color: inherit;
+.side{
+  width:245px;
+  border-right:1px solid var(--line);
+  padding:28px 18px;
+  position:fixed;
+  height:100vh;
+  background:rgba(8,9,12,.78);
+  backdrop-filter:blur(20px);
 }
 
-.app {
-  min-height: 100vh;
-  display: flex;
+.logo{
+  font-size:22px;
+  font-weight:800;
+  letter-spacing:.16em;
+  padding:0 12px 34px;
 }
 
-/* =========================================================
-   SIDEBAR
-========================================================= */
+.logo span{color:var(--accent)}
 
-.side {
-  width: 245px;
-
-  border-right: 1px solid var(--line);
-
-  padding: 28px 18px;
-
-  position: fixed;
-
-  height: 100vh;
-
-  background: rgba(8,9,12,.78);
-
-  backdrop-filter: blur(20px);
-}
-
-.logo {
-  font-size: 22px;
-
-  font-weight: 800;
-
-  letter-spacing: .16em;
-
-  padding: 0 12px 34px;
-}
-
-.logo span {
-  color: var(--accent);
-}
-
-nav a {
-  display: block;
-
-  padding: 12px 13px;
-
-  margin: 3px 0;
-
-  color: var(--muted);
-
-  text-decoration: none;
-
-  border-radius: 10px;
-
-  font-size: 14px;
+nav a{
+  display:block;
+  padding:12px 13px;
+  margin:3px 0;
+  color:var(--muted);
+  text-decoration:none;
+  border-radius:10px;
+  font-size:14px;
 }
 
 nav a.active,
-nav a:hover {
-  background: #171a21;
-  color: #fff;
+nav a:hover{
+  background:#171a21;
+  color:#fff;
 }
 
-.bottom {
-  position: absolute;
-
-  bottom: 22px;
-
-  left: 18px;
-
-  right: 18px;
-
-  color: var(--muted);
-
-  font-size: 11px;
-
-  line-height: 1.5;
-
-  padding: 13px;
-
-  border: 1px solid var(--line);
-
-  border-radius: 12px;
+.bottom{
+  position:absolute;
+  bottom:22px;
+  left:18px;
+  right:18px;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.5;
+  padding:13px;
+  border:1px solid var(--line);
+  border-radius:12px;
 }
 
-/* =========================================================
-   MAIN
-========================================================= */
-
-main {
-  margin-left: 245px;
-
-  width: calc(100% - 245px);
-
-  padding: 42px 48px 70px;
-
-  max-width: 1600px;
+main{
+  margin-left:245px;
+  width:calc(100% - 245px);
+  padding:42px 48px 70px;
+  max-width:1500px;
 }
 
-.top {
-  display: flex;
-
-  justify-content: space-between;
-
-  align-items: flex-start;
-
-  margin-bottom: 36px;
+.top{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  margin-bottom:36px;
 }
 
-.eyebrow {
-  font-size: 11px;
-
-  letter-spacing: .18em;
-
-  color: var(--accent);
-
-  font-weight: 700;
+.eyebrow{
+  font-size:11px;
+  letter-spacing:.18em;
+  color:var(--accent);
+  font-weight:700;
 }
 
-.title {
-  font-size: 42px;
-
-  line-height: 1.02;
-
-  margin: 8px 0 10px;
-
-  letter-spacing: -.04em;
+.title{
+  font-size:42px;
+  line-height:1.02;
+  margin:8px 0 10px;
+  letter-spacing:-.04em;
 }
 
-.subtitle {
-  color: var(--muted);
-
-  max-width: 700px;
-
-  font-size: 14px;
+.subtitle{
+  color:var(--muted);
+  max-width:700px;
+  font-size:14px;
 }
 
-.status {
-  border: 1px solid var(--line);
-
-  padding: 9px 12px;
-
-  border-radius: 999px;
-
-  color: #b8c0ce;
-
-  font-size: 12px;
+.status{
+  border:1px solid var(--line);
+  padding:9px 12px;
+  border-radius:999px;
+  color:#b8c0ce;
+  font-size:12px;
 }
 
-.dot {
-  display: inline-block;
-
-  width: 7px;
-
-  height: 7px;
-
-  background: var(--accent);
-
-  border-radius: 50%;
-
-  margin-right: 7px;
+.dot{
+  display:inline-block;
+  width:7px;
+  height:7px;
+  background:var(--accent);
+  border-radius:50%;
+  margin-right:7px;
 }
 
-.grid {
-  display: grid;
-
-  grid-template-columns: 1fr;
-
-  gap: 18px;
+.grid{
+  display:grid;
+  grid-template-columns:1.15fr .85fr;
+  gap:18px;
 }
 
-.card {
-  background:
-    linear-gradient(
-      145deg,
-      rgba(21,24,32,.94),
-      rgba(12,14,19,.94)
-    );
-
-  border: 1px solid var(--line);
-
-  border-radius: 18px;
-
-  padding: 22px;
-
-  box-shadow: 0 18px 60px rgba(0,0,0,.2);
+.card{
+  background:linear-gradient(145deg,rgba(21,24,32,.94),rgba(12,14,19,.94));
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:22px;
+  box-shadow:0 18px 60px rgba(0,0,0,.2);
 }
 
-.card h2 {
-  font-size: 15px;
-
-  margin: 0 0 5px;
+.card h2{
+  font-size:15px;
+  margin:0 0 5px;
 }
 
-.small {
-  font-size: 12px;
-
-  color: var(--muted);
+.small{
+  font-size:12px;
+  color:var(--muted);
 }
 
-/* =========================================================
-   CONTROLS
-========================================================= */
-
-.controls {
-  display: flex;
-
-  gap: 12px;
-
-  flex-wrap: wrap;
-
-  margin-top: 18px;
+.tabs{
+  display:flex;
+  gap:7px;
+  margin:20px 0;
 }
 
-.control {
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 6px;
+.tab{
+  border:1px solid var(--line);
+  background:#0e1116;
+  padding:8px 11px;
+  border-radius:9px;
+  color:var(--muted);
+  font-size:12px;
+  cursor:pointer;
 }
 
-.control label {
-  font-size: 10px;
-
-  color: var(--muted);
-
-  text-transform: uppercase;
-
-  letter-spacing: .08em;
+.tab.active{
+  color:#fff;
+  background:#1a1e26;
 }
 
-select,
-input[type="number"] {
-  background: #0d1015;
-
-  color: #fff;
-
-  border: 1px solid var(--line);
-
-  border-radius: 9px;
-
-  padding: 9px 11px;
-
-  outline: none;
+.uploadGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-top:18px;
 }
 
-select:focus,
-input[type="number"]:focus {
-  border-color: var(--accent);
+.upload{
+  min-height:310px;
+  border:1px dashed #39404d;
+  border-radius:15px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  background:radial-gradient(circle at center,rgba(168,255,203,.04),transparent 48%);
+  overflow:hidden;
+  position:relative;
 }
 
-/* =========================================================
-   UPLOADS
-========================================================= */
-
-.upload-grid {
-  display: grid;
-
-  grid-template-columns: repeat(2, 1fr);
-
-  gap: 14px;
-
-  margin-top: 20px;
+.upload.hasImage{
+  border-style:solid;
 }
 
-.upload-box {
-  min-height: 260px;
-
-  border: 1px dashed #39404d;
-
-  border-radius: 15px;
-
-  display: flex;
-
-  align-items: center;
-
-  justify-content: center;
-
-  text-align: center;
-
-  background:
-    radial-gradient(
-      circle at center,
-      rgba(168,255,203,.04),
-      transparent 48%
-    );
-
-  padding: 20px;
+.upload-inner{
+  max-width:390px;
+  padding:20px;
 }
 
-.upload-inner {
-  max-width: 390px;
+.face-icon{
+  width:64px;
+  height:64px;
+  border:1px solid #414957;
+  border-radius:50%;
+  margin:0 auto 16px;
+  display:grid;
+  place-items:center;
+  color:var(--accent);
+  font-size:23px;
 }
 
-.face-icon {
-  width: 64px;
-
-  height: 64px;
-
-  border: 1px solid #414957;
-
-  border-radius: 50%;
-
-  margin: 0 auto 16px;
-
-  display: grid;
-
-  place-items: center;
-
-  color: var(--accent);
-
-  font-size: 23px;
+.preview{
+  max-width:100%;
+  max-height:305px;
+  object-fit:contain;
+  display:none;
 }
 
-.primary {
-  border: 0;
-
-  background: var(--accent);
-
-  color: #07110b;
-
-  padding: 12px 18px;
-
-  border-radius: 10px;
-
-  font-weight: 750;
-
-  cursor: pointer;
-
-  margin-top: 16px;
+.upload.hasImage .preview{
+  display:block;
 }
 
-.primary:hover {
-  opacity: .9;
+.upload.hasImage .upload-inner{
+  display:none;
 }
 
-.secondary {
-  border: 1px solid var(--line);
-
-  background: #151820;
-
-  padding: 11px 15px;
-
-  border-radius: 10px;
-
-  cursor: pointer;
+.primary{
+  border:0;
+  background:var(--accent);
+  color:#07110b;
+  padding:12px 18px;
+  border-radius:10px;
+  font-weight:750;
+  cursor:pointer;
+  margin-top:18px;
 }
 
-/* =========================================================
-   PREVIEW
-========================================================= */
-
-.preview-grid {
-  display: grid;
-
-  grid-template-columns: 1fr 1fr;
-
-  gap: 14px;
-
-  margin-top: 18px;
+.secondary{
+  border:1px solid var(--line);
+  background:#151820;
+  padding:11px 15px;
+  border-radius:10px;
+  cursor:pointer;
 }
 
-.preview {
-  background: #0b0d12;
-
-  border: 1px solid var(--line);
-
-  border-radius: 13px;
-
-  padding: 10px;
-
-  min-height: 250px;
-
-  display: flex;
-
-  justify-content: center;
-
-  align-items: center;
-
-  position: relative;
+.analyzeButton{
+  width:100%;
+  margin-top:14px;
+  padding:14px;
+  border:0;
+  border-radius:11px;
+  background:var(--accent);
+  color:#07110b;
+  font-weight:800;
+  cursor:pointer;
 }
 
-.preview canvas {
-  max-width: 100%;
-
-  max-height: 430px;
-
-  width: auto;
-
-  height: auto;
-
-  border-radius: 8px;
+.analyzeButton:disabled{
+  opacity:.35;
+  cursor:not-allowed;
 }
 
-.preview-label {
-  position: absolute;
-
-  top: 10px;
-
-  left: 10px;
-
-  z-index: 2;
-
-  background: rgba(0,0,0,.65);
-
-  border: 1px solid var(--line);
-
-  padding: 5px 7px;
-
-  border-radius: 6px;
-
-  font-size: 9px;
-
-  color: var(--muted);
-
-  letter-spacing: .1em;
+.message{
+  min-height:18px;
+  margin-top:10px;
+  font-size:12px;
+  color:var(--muted);
 }
 
-/* =========================================================
-   ANALYZE BUTTON
-========================================================= */
-
-.analyze-row {
-  display: flex;
-
-  align-items: center;
-
-  gap: 12px;
-
-  margin-top: 18px;
-
-  flex-wrap: wrap;
+.message.error{
+  color:var(--danger);
 }
 
-.status-text {
-  font-size: 12px;
-
-  color: var(--muted);
+.metrics{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px;
+  margin-top:18px;
 }
 
-/* =========================================================
-   RESULTS
-========================================================= */
-
-.results-header {
-  display: flex;
-
-  justify-content: space-between;
-
-  align-items: flex-end;
-
-  gap: 15px;
-
-  flex-wrap: wrap;
+.metric{
+  padding:15px;
+  background:#0d1015;
+  border:1px solid var(--line);
+  border-radius:12px;
 }
 
-.results-header h2 {
-  margin-bottom: 3px;
+.metric .label{
+  font-size:11px;
+  color:var(--muted);
 }
 
-.metric-count {
-  font-size: 11px;
-
-  color: var(--muted);
+.metric .value{
+  font-size:22px;
+  font-weight:700;
+  margin-top:5px;
 }
 
-.metrics {
-  display: grid;
-
-  grid-template-columns:
-    repeat(auto-fit, minmax(280px, 1fr));
-
-  gap: 12px;
-
-  margin-top: 20px;
+.metric .unit{
+  font-size:11px;
+  color:#6f7785;
 }
 
-.metric {
-  padding: 17px;
-
-  background: #0d1015;
-
-  border: 1px solid var(--line);
-
-  border-radius: 13px;
+.metric .ideal{
+  margin-top:9px;
+  font-size:11px;
+  color:#aeb6c2;
 }
 
-.metric-top {
-  display: flex;
-
-  justify-content: space-between;
-
-  align-items: flex-start;
-
-  gap: 10px;
+.metric .comparison{
+  margin-top:5px;
+  font-size:11px;
+  color:var(--accent);
 }
 
-.metric-name {
-  font-size: 12px;
-
-  font-weight: 750;
-
-  color: #fff;
+.metric.profileMetric{
+  border-color:#293b32;
 }
 
-.metric-source {
-  font-size: 9px;
-
-  color: #687181;
-
-  margin-top: 3px;
+.category{
+  margin-top:28px;
 }
 
-.metric-result-label {
-  font-size: 10px;
-
-  color: var(--muted);
-
-  margin-top: 16px;
+.categoryTitle{
+  font-size:13px;
+  font-weight:750;
+  margin-bottom:10px;
+  color:#dfe4eb;
 }
 
-.metric-result {
-  font-size: 26px;
-
-  font-weight: 800;
-
-  margin-top: 2px;
+.empty{
+  padding:35px 15px;
+  text-align:center;
+  color:var(--muted);
+  border:1px dashed var(--line);
+  border-radius:12px;
 }
 
-.metric-ideal {
-  font-size: 11px;
-
-  color: var(--muted);
-
-  margin-top: 6px;
+.bar{
+  height:5px;
+  background:#252a34;
+  border-radius:10px;
+  margin-top:10px;
+  overflow:hidden;
 }
 
-.metric-deviation {
-  margin-top: 13px;
-
-  padding-top: 12px;
-
-  border-top: 1px solid #20242d;
-
-  font-size: 11px;
-
-  line-height: 1.65;
+.bar i{
+  display:block;
+  height:100%;
+  width:0%;
+  background:var(--accent);
+  border-radius:10px;
+  transition:width .4s ease;
 }
 
-.metric-score {
-  margin-top: 10px;
-
-  font-size: 12px;
-
-  font-weight: 750;
+.footer-note{
+  margin-top:22px;
+  color:#606877;
+  font-size:10px;
+  line-height:1.5;
 }
 
-.metric-score span {
-  font-size: 17px;
+.hidden{
+  display:none!important;
 }
 
-.status-pill {
-  display: inline-block;
-
-  margin-top: 11px;
-
-  padding: 5px 8px;
-
-  border-radius: 7px;
-
-  font-size: 9px;
-
-  font-weight: 750;
-
-  letter-spacing: .04em;
-}
-
-.status-inside {
-  color: var(--accent);
-
-  border: 1px solid #33483d;
-
-  background: rgba(168,255,203,.03);
-}
-
-.status-outside {
-  color: var(--danger);
-
-  border: 1px solid #4d3434;
-
-  background: rgba(255,100,100,.03);
-}
-
-.status-calibrate {
-  color: var(--warning);
-
-  border: 1px solid #4d4330;
-
-  background: rgba(255,211,138,.03);
-}
-
-/* =========================================================
-   LEGEND
-========================================================= */
-
-.legend {
-  display: flex;
-
-  gap: 18px;
-
-  flex-wrap: wrap;
-
-  margin-top: 20px;
-
-  padding-top: 15px;
-
-  border-top: 1px solid var(--line);
-
-  font-size: 10px;
-
-  color: var(--muted);
-}
-
-/* =========================================================
-   FOOTER
-========================================================= */
-
-.footer-note {
-  margin-top: 20px;
-
-  color: #606877;
-
-  font-size: 10px;
-
-  line-height: 1.5;
-}
-
-/* =========================================================
-   MOBILE
-========================================================= */
-
-@media (max-width: 900px) {
-
-  .side {
-    display: none;
-  }
-
-  main {
-    margin: 0;
-
-    width: 100%;
-
-    padding: 28px 18px 50px;
-  }
-
-  .title {
-    font-size: 34px;
-  }
-
-  .upload-grid,
-  .preview-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .top {
-    flex-direction: column;
-
-    gap: 18px;
+@media(max-width:1100px){
+  .grid{
+    grid-template-columns:1fr;
   }
 }
 
+@media(max-width:900px){
+  .side{
+    display:none;
+  }
+
+  main{
+    margin:0;
+    width:100%;
+    padding:28px 18px;
+  }
+
+  .title{
+    font-size:34px;
+  }
+
+  .uploadGrid{
+    grid-template-columns:1fr;
+  }
+}
+
+@media(max-width:600px){
+  .metrics{
+    grid-template-columns:1fr;
+  }
+
+  .top{
+    flex-direction:column;
+    gap:15px;
+  }
+}
 </style>
 </head>
-
 
 <body>
 
 <div class="app">
 
-<!-- =======================================================
-     SIDEBAR
-======================================================= -->
-
 <aside class="side">
 
-  <div class="logo">
-    FAC<span>E</span>T
-  </div>
+  <div class="logo">FAC<span>E</span>T</div>
 
   <nav>
-
-    <a class="active" href="#analysis">
-      Analysis
-    </a>
-
-    <a href="#measurements">
-      Measurements
-    </a>
-
+    <a class="active" href="#">Overview</a>
+    <a href="#analysis">Analysis</a>
+    <a href="#measurements">Measurements</a>
   </nav>
 
   <div class="bottom">
-
-    FACET LOCAL PROCESSING
-
-    <br><br>
-
-    Images are processed in the browser.
-    They are not uploaded to a FACET server.
-
+    PRIVATE BY DESIGN<br>
+    Photos are processed locally in this prototype.
+    Measurements are geometric estimates, not medical advice.
   </div>
 
 </aside>
 
-
-<!-- =======================================================
-     MAIN
-======================================================= -->
 
 <main>
 
 <section class="top">
 
   <div>
-
-    <div class="eyebrow">
-      FACIAL GEOMETRY ANALYSIS
-    </div>
+    <div class="eyebrow">FACIAL ANALYSIS PLATFORM</div>
 
     <div class="title">
       Understand your face<br>
@@ -790,124 +452,79 @@ input[type="number"]:focus {
     </div>
 
     <div class="subtitle">
-      MediaPipe facial landmarks converted into
-      reproducible geometric measurements and
-      reference-range comparisons.
+      Upload one frontal photograph and one side-profile photograph.
+      FACET will extract facial landmarks and calculate the available
+      geometric measurements.
     </div>
-
   </div>
 
-  <div class="status">
+  <div class="status" id="status">
     <span class="dot"></span>
-    FACET ready
+    Ready
   </div>
 
 </section>
 
 
-<!-- =======================================================
-     ANALYSIS
-======================================================= -->
+<div class="grid">
+
+
+<!-- ANALYSIS -->
 
 <section class="card" id="analysis">
 
-  <h2>
-    01 / Analyze a face
-  </h2>
+  <h2>01 / Analyze a face</h2>
 
   <div class="small">
-    Use a straight frontal photograph for facial
-    proportions and a true side profile for profile-dependent
-    measurements.
+    Both views are required for the complete analysis.
   </div>
 
 
-  <!-- CONTROLS -->
+  <div class="uploadGrid">
 
-  <div class="controls">
+    <!-- FRONT -->
 
-    <div class="control">
+    <div>
 
-      <label for="sex">
-        Reference set
-      </label>
+      <div class="small" style="margin-bottom:8px">
+        FRONT / FRONTAL
+      </div>
 
-      <select id="sex">
+      <div class="upload" id="frontUpload">
 
-        <option value="male">
-          Male
-        </option>
+        <img id="frontPreview" class="preview">
 
-        <option value="female">
-          Female
-        </option>
+        <div class="upload-inner">
 
-      </select>
+          <div class="face-icon">⌁</div>
 
-    </div>
+          <h2>Frontal photograph</h2>
 
+          <div class="small">
+            Face looking directly at camera
+          </div>
 
-    <div class="control">
+          <button
+            class="primary"
+            onclick="document.getElementById('frontFile').click()"
+          >
+            Upload front
+          </button>
 
-      <label for="scaleMm">
-        Known scale in mm
-      </label>
+          <input
+            id="frontFile"
+            type="file"
+            accept="image/*"
+            hidden
+          >
 
-      <input
-        id="scaleMm"
-        type="number"
-        min="1"
-        step="0.1"
-        placeholder="Optional"
-      >
+          <div
+            id="frontName"
+            class="small"
+            style="margin-top:12px"
+          ></div>
 
-    </div>
-
-  </div>
-
-
-  <!-- UPLOADS -->
-
-  <div class="upload-grid">
-
-    <!-- FRONTAL -->
-
-    <div class="upload-box">
-
-      <div class="upload-inner">
-
-        <div class="face-icon">
-          F
         </div>
-
-        <h2>
-          Frontal photograph
-        </h2>
-
-        <div class="small">
-          Straight-on · neutral expression ·
-          head level · minimal perspective
-        </div>
-
-        <button
-          class="primary"
-          id="frontalButton"
-        >
-          Upload frontal
-        </button>
-
-        <input
-          id="frontalInput"
-          type="file"
-          accept="image/*"
-          hidden
-        >
-
-        <div
-          id="frontalName"
-          class="small"
-          style="margin-top:12px"
-        ></div>
 
       </div>
 
@@ -916,633 +533,343 @@ input[type="number"]:focus {
 
     <!-- PROFILE -->
 
-    <div class="upload-box">
-
-      <div class="upload-inner">
-
-        <div class="face-icon">
-          P
-        </div>
-
-        <h2>
-          Side profile
-        </h2>
-
-        <div class="small">
-          True lateral profile · neutral expression ·
-          head level
-        </div>
-
-        <button
-          class="primary"
-          id="profileButton"
-        >
-          Upload profile
-        </button>
-
-        <input
-          id="profileInput"
-          type="file"
-          accept="image/*"
-          hidden
-        >
-
-        <div
-          id="profileName"
-          class="small"
-          style="margin-top:12px"
-        ></div>
-
-      </div>
-
-    </div>
-
-  </div>
-
-
-  <!-- PREVIEWS -->
-
-  <div class="preview-grid">
-
-    <div class="preview">
-
-      <div class="preview-label">
-        FRONTAL LANDMARKS
-      </div>
-
-      <canvas
-        id="frontalCanvas"
-      ></canvas>
-
-    </div>
-
-
-    <div class="preview">
-
-      <div class="preview-label">
-        PROFILE LANDMARKS
-      </div>
-
-      <canvas
-        id="profileCanvas"
-      ></canvas>
-
-    </div>
-
-  </div>
-
-
-  <!-- ANALYZE -->
-
-  <div class="analyze-row">
-
-    <button
-      class="primary"
-      id="analyzeButton"
-    >
-      Analyze face
-    </button>
-
-    <button
-      class="secondary"
-      id="clearButton"
-    >
-      Clear
-    </button>
-
-    <div
-      id="analysisStatus"
-      class="status-text"
-    >
-      Initializing facial analysis...
-    </div>
-
-  </div>
-
-</section>
-
-
-<!-- =======================================================
-     MEASUREMENTS
-======================================================= -->
-
-<section
-  class="card"
-  id="measurements"
-  style="margin-top:18px"
->
-
-  <div class="results-header">
-
     <div>
 
-      <h2>
-        02 / FACET Measurements
-      </h2>
-
-      <div class="small">
-        Your measured value compared with its defined
-        reference interval.
+      <div class="small" style="margin-bottom:8px">
+        SIDE / PROFILE
       </div>
 
-    </div>
+      <div class="upload" id="profileUpload">
 
-    <div
-      id="metricCount"
-      class="metric-count"
-    >
-      No analysis yet
+        <img id="profilePreview" class="preview">
+
+        <div class="upload-inner">
+
+          <div class="face-icon">⌁</div>
+
+          <h2>Profile photograph</h2>
+
+          <div class="small">
+            True side profile
+          </div>
+
+          <button
+            class="primary"
+            onclick="document.getElementById('profileFile').click()"
+          >
+            Upload profile
+          </button>
+
+          <input
+            id="profileFile"
+            type="file"
+            accept="image/*"
+            hidden
+          >
+
+          <div
+            id="profileName"
+            class="small"
+            style="margin-top:12px"
+          ></div>
+
+        </div>
+
+      </div>
+
     </div>
 
   </div>
 
 
-  <div
-    id="metricResults"
-    class="metrics"
+  <button
+    id="analyzeButton"
+    class="analyzeButton"
+    disabled
   >
+    Analyze Face
+  </button>
 
-    <div class="metric">
+  <div id="analysisMessage" class="message"></div>
 
-      <div class="metric-name">
-        Waiting for analysis
-      </div>
+</section>
 
-      <div class="metric-ideal">
-        Upload a frontal photograph and press
-        "Analyze face".
-      </div>
 
+<!-- RESULTS -->
+
+<section class="card" id="measurements">
+
+  <h2>02 / Measurements</h2>
+
+  <div class="small">
+    Your calculated measurements compared with the configured reference ranges.
+  </div>
+
+  <div id="results">
+
+    <div class="empty">
+      Upload both photographs and start the analysis.
     </div>
 
   </div>
-
-
-  <div class="legend">
-
-    <span>
-      <b style="color:var(--accent)">●</b>
-      Within reference
-    </span>
-
-    <span>
-      <b style="color:var(--danger)">●</b>
-      Outside reference
-    </span>
-
-    <span>
-      <b style="color:var(--warning)">●</b>
-      Calibration required
-    </span>
-
-  </div>
-
 
   <div class="footer-note">
-
-    The deviation number is a mathematical distance from
-    the midpoint of the selected reference interval,
-    normalized by half of that interval's width.
-    0 = exact midpoint, 1 = reference boundary,
-    greater than 1 = outside the reference interval.
-
+    Values are geometric estimates derived from MediaPipe facial
+    landmarks. Camera perspective, head position and image quality
+    can affect measurements. Reference ranges are operational
+    reference intervals, not clinical diagnoses or universal standards.
   </div>
 
 </section>
+
+</div>
 
 </main>
 
 </div>
 
 
-<!-- =======================================================
-     FACET APPLICATION
-======================================================= -->
-
+<!--
+  MediaPipe Face Landmarker
+-->
 <script type="module">
 
 import {
   FaceLandmarker,
   FilesetResolver
-}
-from
-"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.mjs";
+} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22";
 
 
 import {
   calculateMetrics,
-  attachIdealRanges,
-  METRIC_DEFINITIONS
-}
-from "./metrics.js";
+  attachIdealRanges
+} from "./metrics.js";
 
 
 /* =========================================================
-   CONSTANTS
+   GLOBAL STATE
 ========================================================= */
 
-const WASM_PATH =
-  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm";
+let frontFile = null;
+let profileFile = null;
 
-const MODEL_PATH =
-  "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+let frontImage = null;
+let profileImage = null;
+
+let frontLandmarks = null;
+let profileLandmarks = null;
+
+let faceLandmarker = null;
 
 
 /* =========================================================
    DOM
 ========================================================= */
 
-const frontalInput =
-  document.getElementById("frontalInput");
+const frontInput =
+  document.getElementById("frontFile");
 
 const profileInput =
-  document.getElementById("profileInput");
+  document.getElementById("profileFile");
 
-const frontalButton =
-  document.getElementById("frontalButton");
+const frontUpload =
+  document.getElementById("frontUpload");
 
-const profileButton =
-  document.getElementById("profileButton");
+const profileUpload =
+  document.getElementById("profileUpload");
 
-const analyzeButton =
-  document.getElementById("analyzeButton");
+const frontPreview =
+  document.getElementById("frontPreview");
 
-const clearButton =
-  document.getElementById("clearButton");
+const profilePreview =
+  document.getElementById("profilePreview");
 
-const sexSelect =
-  document.getElementById("sex");
-
-const scaleInput =
-  document.getElementById("scaleMm");
-
-const frontalCanvas =
-  document.getElementById("frontalCanvas");
-
-const profileCanvas =
-  document.getElementById("profileCanvas");
-
-const frontalName =
-  document.getElementById("frontalName");
+const frontName =
+  document.getElementById("frontName");
 
 const profileName =
   document.getElementById("profileName");
 
+const analyzeButton =
+  document.getElementById("analyzeButton");
+
+const message =
+  document.getElementById("analysisMessage");
+
+const results =
+  document.getElementById("results");
+
 const status =
-  document.getElementById("analysisStatus");
-
-const metricResults =
-  document.getElementById("metricResults");
-
-const metricCount =
-  document.getElementById("metricCount");
+  document.getElementById("status");
 
 
 /* =========================================================
-   STATE
+   FILE SELECTION
 ========================================================= */
 
-let faceLandmarker = null;
+frontInput.addEventListener("change", async event => {
 
-let frontalImage = null;
+  const file = event.target.files[0];
 
-let profileImage = null;
+  if(!file) return;
 
-let frontalLandmarks = null;
+  frontFile = file;
 
-let profileLandmarks = null;
+  frontName.textContent =
+    "Selected: " + file.name;
+
+  frontImage =
+    await loadImage(file);
+
+  frontPreview.src =
+    frontImage.src;
+
+  frontUpload.classList.add("hasImage");
+
+  updateButton();
+
+});
+
+
+profileInput.addEventListener("change", async event => {
+
+  const file = event.target.files[0];
+
+  if(!file) return;
+
+  profileFile = file;
+
+  profileName.textContent =
+    "Selected: " + file.name;
+
+  profileImage =
+    await loadImage(file);
+
+  profilePreview.src =
+    profileImage.src;
+
+  profileUpload.classList.add("hasImage");
+
+  updateButton();
+
+});
 
 
 /* =========================================================
-   INITIALIZE MEDIAPIPE
+   IMAGE LOADING
 ========================================================= */
 
-async function initializeFaceLandmarker() {
+function loadImage(file){
 
-  try {
+  return new Promise((resolve,reject)=>{
 
-    status.textContent =
-      "Loading MediaPipe...";
+    const img =
+      new Image();
 
-    const vision =
-      await FilesetResolver.forVisionTasks(
-        WASM_PATH
+    img.onload = () => resolve(img);
+
+    img.onerror =
+      () => reject(
+        new Error("Could not load image.")
       );
 
+    img.src =
+      URL.createObjectURL(file);
 
-    faceLandmarker =
-      await FaceLandmarker.createFromOptions(
-        vision,
-        {
-
-          baseOptions: {
-
-            modelAssetPath:
-              MODEL_PATH,
-
-            delegate:
-              "CPU"
-
-          },
-
-          runningMode:
-            "IMAGE",
-
-          numFaces:
-            1,
-
-          minFaceDetectionConfidence:
-            0.5,
-
-          minFacePresenceConfidence:
-            0.5,
-
-          minTrackingConfidence:
-            0.5
-
-        }
-      );
-
-
-    status.textContent =
-      "MediaPipe ready.";
-
-  }
-
-  catch (error) {
-
-    console.error(error);
-
-    status.textContent =
-      "MediaPipe failed to initialize. Check the browser console.";
-
-  }
+  });
 
 }
 
 
 /* =========================================================
-   FILE HELPERS
+   BUTTON STATE
 ========================================================= */
 
-function loadImage(file) {
+function updateButton(){
 
-  return new Promise(
-    (resolve, reject) => {
+  analyzeButton.disabled =
+    !(frontFile && profileFile);
 
-      const image =
-        new Image();
+}
 
-      image.onload =
-        () => resolve(image);
 
-      image.onerror =
-        reject;
+/* =========================================================
+   MEDIAPIPE INITIALIZATION
+========================================================= */
 
-      image.src =
-        URL.createObjectURL(file);
+async function initializeFaceLandmarker(){
 
-    }
+  if(faceLandmarker)
+    return faceLandmarker;
+
+  setMessage(
+    "Loading facial landmark model..."
   );
 
-}
-
-
-/* =========================================================
-   DRAW LANDMARKS
-========================================================= */
-
-function drawLandmarks(
-  image,
-  landmarks,
-  canvas
-) {
-
-  if (!image || !landmarks) {
-    return;
-  }
-
-
-  const ctx =
-    canvas.getContext("2d");
-
-
-  const maxWidth =
-    900;
-
-  const scale =
-    Math.min(
-      1,
-      maxWidth / image.naturalWidth
+  const vision =
+    await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
     );
 
+  faceLandmarker =
+    await FaceLandmarker.createFromOptions(
+      vision,
+      {
+        baseOptions:{
+          modelAssetPath:
+            "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
 
-  canvas.width =
-    image.naturalWidth * scale;
+          delegate:"GPU"
+        },
 
-  canvas.height =
-    image.naturalHeight * scale;
+        runningMode:"IMAGE",
 
+        numFaces:1,
 
-  ctx.clearRect(
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
+        minFaceDetectionConfidence:0.5,
 
+        minFacePresenceConfidence:0.5,
 
-  ctx.drawImage(
-    image,
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
+        minTrackingConfidence:0.5,
 
+        outputFaceBlendshapes:false,
 
-  ctx.fillStyle =
-    "#a8ffcb";
-
-
-  for (
-    const point of landmarks
-  ) {
-
-    const x =
-      point.x * canvas.width;
-
-    const y =
-      point.y * canvas.height;
-
-
-    ctx.beginPath();
-
-    ctx.arc(
-      x,
-      y,
-      1.8,
-      0,
-      Math.PI * 2
+        outputFacialTransformationMatrixes:false
+      }
     );
 
-    ctx.fill();
-
-  }
+  return faceLandmarker;
 
 }
 
 
 /* =========================================================
-   PROCESS IMAGE
+   LANDMARK DETECTION
 ========================================================= */
 
-async function processImage(
-  image,
-  canvas
-) {
+async function detectLandmarks(image){
 
-  if (!faceLandmarker) {
+  const detector =
+    await initializeFaceLandmarker();
+
+  const detection =
+    detector.detect(image);
+
+  if(
+    !detection ||
+    !detection.faceLandmarks ||
+    detection.faceLandmarks.length === 0
+  ){
 
     throw new Error(
-      "Face Landmarker is not ready."
+      "No face was detected in one of the photographs."
     );
 
   }
 
-
-  const result =
-    faceLandmarker.detect(image);
-
-
-  if (
-    !result.faceLandmarks ||
-    result.faceLandmarks.length === 0
-  ) {
-
-    throw new Error(
-      "No face was detected."
-    );
-
-  }
-
-
-  const landmarks =
-    result.faceLandmarks[0];
-
-
-  drawLandmarks(
-    image,
-    landmarks,
-    canvas
-  );
-
-
-  return landmarks;
+  return detection.faceLandmarks[0];
 
 }
-
-
-/* =========================================================
-   FRONTAL UPLOAD
-========================================================= */
-
-frontalButton.addEventListener(
-  "click",
-  () => frontalInput.click()
-);
-
-
-frontalInput.addEventListener(
-  "change",
-  async () => {
-
-    const file =
-      frontalInput.files[0];
-
-    if (!file) {
-      return;
-    }
-
-
-    frontalName.textContent =
-      file.name;
-
-
-    try {
-
-      frontalImage =
-        await loadImage(file);
-
-      frontalLandmarks = null;
-
-      status.textContent =
-        "Frontal image loaded. Press Analyze face.";
-
-    }
-
-    catch (error) {
-
-      console.error(error);
-
-      status.textContent =
-        "Could not load frontal image.";
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   PROFILE UPLOAD
-========================================================= */
-
-profileButton.addEventListener(
-  "click",
-  () => profileInput.click()
-);
-
-
-profileInput.addEventListener(
-  "change",
-  async () => {
-
-    const file =
-      profileInput.files[0];
-
-    if (!file) {
-      return;
-    }
-
-
-    profileName.textContent =
-      file.name;
-
-
-    try {
-
-      profileImage =
-        await loadImage(file);
-
-      profileLandmarks = null;
-
-      status.textContent =
-        "Profile image loaded. Press Analyze face.";
-
-    }
-
-    catch (error) {
-
-      console.error(error);
-
-      status.textContent =
-        "Could not load profile image.";
-
-    }
-
-  }
-);
 
 
 /* =========================================================
@@ -1551,425 +878,392 @@ profileInput.addEventListener(
 
 analyzeButton.addEventListener(
   "click",
-  async () => {
-
-    try {
-
-      if (!frontalImage) {
-
-        status.textContent =
-          "Upload a frontal photograph first.";
-
-        return;
-
-      }
-
-
-      status.textContent =
-        "Detecting facial landmarks...";
-
-
-      frontalLandmarks =
-        await processImage(
-          frontalImage,
-          frontalCanvas
-        );
-
-
-      if (profileImage) {
-
-        profileLandmarks =
-          await processImage(
-            profileImage,
-            profileCanvas
-          );
-
-      }
-
-
-      status.textContent =
-        "Calculating FACET measurements...";
-
-
-      const rawMetrics =
-        calculateMetrics({
-
-          frontal:
-            frontalLandmarks,
-
-          profile:
-            profileLandmarks,
-
-          scaleMm:
-            Number(scaleInput.value) || null
-
-        });
-
-
-      const results =
-        attachIdealRanges(
-          rawMetrics,
-          sexSelect.value
-        );
-
-
-      displayResults(
-        results
-      );
-
-
-      status.textContent =
-        "FACET analysis complete.";
-
-    }
-
-    catch (error) {
-
-      console.error(error);
-
-      status.textContent =
-        error.message ||
-        "Analysis failed.";
-
-    }
-
-  }
+  analyzeFace
 );
 
 
-/* =========================================================
-   CLEAR
-========================================================= */
+async function analyzeFace(){
 
-clearButton.addEventListener(
-  "click",
-  () => {
+  try{
 
-    frontalImage = null;
+    analyzeButton.disabled = true;
 
-    profileImage = null;
-
-    frontalLandmarks = null;
-
-    profileLandmarks = null;
-
-
-    frontalInput.value = "";
-
-    profileInput.value = "";
-
-
-    frontalName.textContent = "";
-
-    profileName.textContent = "";
-
-
-    frontalCanvas
-      .getContext("2d")
-      .clearRect(
-        0,
-        0,
-        frontalCanvas.width,
-        frontalCanvas.height
-      );
-
-
-    profileCanvas
-      .getContext("2d")
-      .clearRect(
-        0,
-        0,
-        profileCanvas.width,
-        profileCanvas.height
-      );
-
-
-    metricResults.innerHTML = `
-
-      <div class="metric">
-
-        <div class="metric-name">
-          Waiting for analysis
-        </div>
-
-        <div class="metric-ideal">
-          Upload a frontal photograph and press
-          "Analyze face".
-        </div>
-
-      </div>
-
-    `;
-
-
-    metricCount.textContent =
-      "No analysis yet";
-
-
-    status.textContent =
-      "Ready.";
-
-  }
-);
-
-
-/* =========================================================
-   RESULT DISPLAY
-========================================================= */
-
-function displayResults(results) {
-
-  metricResults.innerHTML = "";
-
-
-  let calculated =
-    0;
-
-
-  for (
-    const definition
-    of METRIC_DEFINITIONS
-  ) {
-
-    const result =
-      results[definition.key];
-
-
-    if (!result) {
-      continue;
-    }
-
-
-    const card =
-      document.createElement("div");
-
-    card.className =
-      "metric";
-
-
-    const name =
-      definition.name;
-
-
-    const unit =
-      result.unit || "";
-
-
-    /* -------------------------------------------------------
-       CALIBRATION REQUIRED
-    ------------------------------------------------------- */
-
-    if (
-      result.status ===
-      "calibration"
-    ) {
-
-      card.innerHTML = `
-
-        <div class="metric-top">
-
-          <div>
-
-            <div class="metric-name">
-              ${name}
-            </div>
-
-            <div class="metric-source">
-              ${definition.view}
-            </div>
-
-          </div>
-
-        </div>
-
-
-        <div class="metric-result-label">
-          RESULT
-        </div>
-
-        <div class="metric-result">
-          —
-        </div>
-
-
-        <div class="metric-ideal">
-          Ideal:
-          ${result.idealText}
-        </div>
-
-
-        <div class="metric-score">
-          Calibration required
-        </div>
-
-
-        <div class="status-pill status-calibrate">
-          CALIBRATE IMAGE
-        </div>
-
-      `;
-
-
-      metricResults.appendChild(
-        card
-      );
-
-      continue;
-
-    }
-
-
-    if (
-      result.value === null ||
-      result.value === undefined ||
-      !Number.isFinite(result.value)
-    ) {
-
-      card.innerHTML = `
-
-        <div class="metric-name">
-          ${name}
-        </div>
-
-        <div class="metric-result-label">
-          RESULT
-        </div>
-
-        <div class="metric-result">
-          —
-        </div>
-
-        <div class="metric-ideal">
-          Ideal: ${result.idealText}
-        </div>
-
-        <div class="status-pill status-calibrate">
-          INSUFFICIENT IMAGE DATA
-        </div>
-
-      `;
-
-
-      metricResults.appendChild(
-        card
-      );
-
-      continue;
-
-    }
-
-
-    calculated++;
-
-
-    const statusClass =
-      result.comparison.inside
-        ? "status-inside"
-        : "status-outside";
-
-
-    const statusText =
-      result.comparison.inside
-        ? "WITHIN REFERENCE"
-        : "OUTSIDE REFERENCE";
-
-
-    card.innerHTML = `
-
-      <div class="metric-top">
-
-        <div>
-
-          <div class="metric-name">
-            ${name}
-          </div>
-
-          <div class="metric-source">
-            ${definition.view}
-          </div>
-
-        </div>
-
-      </div>
-
-
-      <div class="metric-result-label">
-        YOUR RESULT
-      </div>
-
-
-      <div class="metric-result">
-        ${result.formattedValue}${unit}
-      </div>
-
-
-      <div class="metric-ideal">
-        Ideal reference:
-        <strong>
-          ${result.idealText}
-        </strong>
-      </div>
-
-
-      <div class="metric-deviation">
-
-        Distance from ideal midpoint:
-        <strong>
-          ${result.comparison.absoluteDistance.toFixed(3)}${unit}
-        </strong>
-
-        <br>
-
-        Reference-normalized deviation:
-        <strong>
-          ${result.comparison.score.toFixed(2)}
-        </strong>
-
-      </div>
-
-
-      <div class="metric-score">
-
-        0.00 = midpoint
-
-        ·
-
-        1.00 = reference boundary
-
-        ·
-
-        >1.00 = outside
-
-      </div>
-
-
-      <div class="status-pill ${statusClass}">
-        ${statusText}
-      </div>
-
-    `;
-
-
-    metricResults.appendChild(
-      card
+    setStatus(
+      "Analyzing..."
     );
 
+    setMessage(
+      "Detecting facial landmarks..."
+    );
+
+
+    /* ---------------------------------------------
+       FRONT
+    --------------------------------------------- */
+
+    frontLandmarks =
+      await detectLandmarks(
+        frontImage
+      );
+
+
+    setMessage(
+      "Frontal landmarks detected. Analyzing profile..."
+    );
+
+
+    /* ---------------------------------------------
+       PROFILE
+    --------------------------------------------- */
+
+    profileLandmarks =
+      await detectLandmarks(
+        profileImage
+      );
+
+
+    setMessage(
+      "Landmarks detected. Calculating measurements..."
+    );
+
+
+    /* ---------------------------------------------
+       CALCULATE
+    --------------------------------------------- */
+
+    const rawMetrics =
+      calculateMetrics({
+
+        frontal:
+          frontLandmarks,
+
+        profile:
+          profileLandmarks,
+
+        scaleMm:
+          null
+
+      });
+
+
+    /* ---------------------------------------------
+       ATTACH IDEAL RANGES
+    --------------------------------------------- */
+
+    const metrics =
+      attachIdealRanges(
+        rawMetrics,
+        "male"
+      );
+
+
+    /* ---------------------------------------------
+       RENDER
+    --------------------------------------------- */
+
+    renderResults(
+      metrics
+    );
+
+
+    setStatus(
+      "Analysis Complete"
+    );
+
+    setMessage(
+      `${countValidMetrics(metrics)} measurements calculated.`
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+    setStatus(
+      "Analysis Failed"
+    );
+
+    setMessage(
+      error.message ||
+      "Something went wrong during analysis.",
+      true
+    );
+
+  }finally{
+
+    analyzeButton.disabled =
+      !(frontFile && profileFile);
+
   }
-
-
-  metricCount.textContent =
-    `${calculated} / ${METRIC_DEFINITIONS.length} metrics calculated`;
 
 }
 
 
 /* =========================================================
-   START
+   RESULT RENDERING
 ========================================================= */
 
-initializeFaceLandmarker();
+function renderResults(metrics){
+
+  if(!metrics){
+
+    results.innerHTML =
+      `<div class="empty">
+        No measurements were returned.
+      </div>`;
+
+    return;
+
+  }
+
+
+  const entries =
+    Object.entries(metrics);
+
+
+  if(entries.length === 0){
+
+    results.innerHTML =
+      `<div class="empty">
+        No measurements were returned.
+      </div>`;
+
+    return;
+
+  }
+
+
+  const categories = {};
+
+
+  entries.forEach(
+    ([id,metric]) => {
+
+      const category =
+        metric.category ||
+        "General";
+
+      if(!categories[category])
+        categories[category] = [];
+
+      categories[category].push({
+        id,
+        metric
+      });
+
+    }
+  );
+
+
+  let html = "";
+
+
+  for(
+    const [category,items]
+    of Object.entries(categories)
+  ){
+
+    html += `
+      <div class="category">
+
+        <div class="categoryTitle">
+          ${escapeHtml(category)}
+        </div>
+
+        <div class="metrics">
+    `;
+
+
+    items.forEach(
+      ({id,metric}) => {
+
+        html +=
+          renderMetric(
+            id,
+            metric
+          );
+
+      }
+    );
+
+
+    html += `
+        </div>
+      </div>
+    `;
+
+  }
+
+
+  results.innerHTML =
+    html;
+
+}
+
+
+/* =========================================================
+   SINGLE METRIC
+========================================================= */
+
+function renderMetric(id,metric){
+
+  const value =
+    metric.value;
+
+  const hasValue =
+    typeof value === "number" &&
+    Number.isFinite(value);
+
+
+  const displayValue =
+    metric.formattedValue ??
+    (
+      hasValue
+        ? formatNumber(value)
+        : "N/A"
+    );
+
+
+  const ideal =
+    metric.idealText ||
+    metric.ideal ||
+    "Reference unavailable";
+
+
+  const comparison =
+    metric.comparison;
+
+
+  const comparisonText =
+    comparison !== undefined &&
+    comparison !== null &&
+    Number.isFinite(Number(comparison))
+      ? `Comparison: ${Number(comparison).toFixed(2)}`
+      : "Comparison: N/A";
+
+
+  const requiresProfile =
+    metric.requiresProfile === true;
+
+
+  return `
+    <div class="metric ${requiresProfile ? "profileMetric" : ""}">
+
+      <div class="label">
+        ${escapeHtml(
+          metric.name ||
+          metric.label ||
+          id
+        )}
+      </div>
+
+      <div class="value">
+        ${escapeHtml(
+          String(displayValue)
+        )}
+      </div>
+
+      <div class="unit">
+        ${escapeHtml(
+          metric.unit ||
+          ""
+        )}
+      </div>
+
+      <div class="ideal">
+        Ideal: ${escapeHtml(
+          String(ideal)
+        )}
+      </div>
+
+      <div class="comparison">
+        ${escapeHtml(
+          comparisonText
+        )}
+      </div>
+
+    </div>
+  `;
+
+}
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function countValidMetrics(metrics){
+
+  return Object.values(metrics)
+    .filter(metric =>
+      typeof metric.value === "number" &&
+      Number.isFinite(metric.value)
+    )
+    .length;
+
+}
+
+
+function formatNumber(value){
+
+  if(!Number.isFinite(value))
+    return "N/A";
+
+  if(
+    Math.abs(value) >= 100 ||
+    Number.isInteger(value)
+  ){
+
+    return value.toFixed(0);
+
+  }
+
+  if(
+    Math.abs(value) >= 10
+  ){
+
+    return value.toFixed(1);
+
+  }
+
+  return value.toFixed(2);
+
+}
+
+
+function escapeHtml(value){
+
+  return String(value)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+
+}
+
+
+function setMessage(text,isError=false){
+
+  message.textContent =
+    text;
+
+  message.classList.toggle(
+    "error",
+    isError
+  );
+
+}
+
+
+function setStatus(text){
+
+  status.innerHTML =
+    `<span class="dot"></span>${escapeHtml(text)}`;
+
+}
 
 </script>
 
 </body>
 </html>
+```
