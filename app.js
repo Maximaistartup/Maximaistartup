@@ -1,4 +1,4 @@
-import { FaceLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
+import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm/vision_bundle.mjs";
 import { calculateMetrics, attachIdealRanges } from "./metrics.js";
 import { createTracer } from "./tracer.js";
 
