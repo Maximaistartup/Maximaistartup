@@ -4,8 +4,9 @@ import {
   attachIdealRanges,
   getMetricDefinitions
 } from "./metrics.js";
+import { createTracer } from "./tracer.js";
 
-const FACET_VERSION = "3.1.0";
+const FACET_VERSION = "4.0.0";
 window.__FACET_VERSION__ = FACET_VERSION;
 
 const WASM_URL =
@@ -16,6 +17,7 @@ const MODEL_URL =
 let faceLandmarker = null;
 let frontImage = null;
 let profileImage = null;
+let analyzing = false;
 
 const $ = (id) => document.getElementById(id);
 
@@ -69,11 +71,35 @@ function loadImage(dataURL) {
   });
 }
 
+/* ---------- profile tracer ---------- */
+
+const tracer = createTracer({
+  insertBefore: document.querySelector(".analyze-area"),
+  onChange: () => {
+    updateAnalyzeButton();
+    if (analyzing || !profileImage) return;
+    const left = tracer.remainingRequired();
+    if (left > 0) {
+      setStatus(`Place the remaining required profile landmarks (${left} left).`);
+    } else if (frontImage && faceLandmarker) {
+      setStatus("All required landmarks placed. Ready for analysis.", "success");
+    } else if (!frontImage) {
+      setStatus("Profile landmarks placed. Add a frontal photograph.");
+    }
+  }
+});
+
 function updateAnalyzeButton() {
-  analyzeButton.disabled = !(frontImage && profileImage && faceLandmarker);
+  analyzeButton.disabled = !(
+    frontImage &&
+    profileImage &&
+    faceLandmarker &&
+    tracer.isComplete() &&
+    !analyzing
+  );
 }
 
-/* ---------- MediaPipe ---------- */
+/* ---------- MediaPipe (frontal photograph) ---------- */
 
 async function createLandmarker(delegate) {
   const vision = await FilesetResolver.forVisionTasks(WASM_URL);
@@ -103,22 +129,18 @@ async function initFaceLandmarker() {
     }
   }
   updateAnalyzeButton();
-  if (frontImage && profileImage) {
-    setStatus("Both photographs loaded. Ready for analysis.", "success");
-  } else {
-    setStatus("Analysis engine ready.");
-  }
+  setStatus("Analysis engine ready.");
 }
 
 /* Returns landmarks in PIXEL space so angles/distances are not distorted
    by the image aspect ratio (MediaPipe returns x,y normalized to 0..1). */
-async function detectFace(dataURL, description) {
+async function detectFrontalFace(dataURL) {
   const image = await loadImage(dataURL);
   const w = image.naturalWidth;
   const h = image.naturalHeight;
 
   if (w < 100 || h < 100) {
-    throw new Error(`The ${description} photograph is too small for reliable analysis.`);
+    throw new Error("The frontal photograph is too small for reliable analysis.");
   }
 
   let result;
@@ -126,20 +148,15 @@ async function detectFace(dataURL, description) {
     result = faceLandmarker.detect(image);
   } catch (error) {
     console.error("MediaPipe detection error:", error);
-    throw new Error(`FACET could not analyze the ${description} photograph.`);
+    throw new Error("FACET could not analyze the frontal photograph.");
   }
 
   const faces = result?.faceLandmarks ?? [];
-
   if (faces.length === 0) {
-    const hint =
-      description === "side-profile"
-        ? " True 90° profiles are often not detected; a slight turn toward the camera (about 60–75°) can help."
-        : "";
-    throw new Error(`Please input a human face in the ${description} photograph.${hint}`);
+    throw new Error("Please input a human face in the frontal photograph.");
   }
   if (faces.length > 1) {
-    throw new Error(`Please input exactly one human face in the ${description} photograph.`);
+    throw new Error("Please input exactly one human face in the frontal photograph.");
   }
 
   return faces[0].map((p) => ({ x: p.x * w, y: p.y * h, z: p.z * w }));
@@ -218,7 +235,7 @@ function renderMetricCatalog() {
     for (const m of items) {
       const photo = m.requiresProfile && m.requiresFrontal
         ? "Frontal + Profile"
-        : m.requiresProfile ? "Profile" : "Frontal";
+        : m.requiresProfile ? "Profile (traced)" : "Frontal";
       const sfx = m.unit === "deg" ? "°" : m.unit === "pct" ? "%" : "";
       const ideal = m.ideal ? `${m.ideal[0]}${sfx} – ${m.ideal[1]}${sfx}` : "Not specified";
 
@@ -242,7 +259,7 @@ function renderMetricCatalog() {
 
 /* ---------- file inputs ---------- */
 
-function bindFileInput({ input, preview, filename, card, label, otherLoaded, setImage }) {
+function bindFileInput({ input, preview, filename, card, label, onLoaded }) {
   input.addEventListener("change", async () => {
     const file = input.files?.[0];
     if (!file) return;
@@ -254,18 +271,13 @@ function bindFileInput({ input, preview, filename, card, label, otherLoaded, set
 
     try {
       const dataURL = await fileToDataURL(file);
-      setImage(dataURL);
+      onLoaded(dataURL);
       preview.src = dataURL;
       preview.classList.add("visible");
       filename.textContent = file.name;
       card.classList.add("has-image");
       results.classList.add("hidden");
-
-      if (faceLandmarker && otherLoaded()) {
-        setStatus("Both photographs loaded. Ready for analysis.", "success");
-      } else {
-        setStatus(`${label} photograph loaded.`);
-      }
+      setStatus(`${label} photograph loaded.`);
       updateAnalyzeButton();
     } catch (error) {
       console.error(error);
@@ -276,27 +288,34 @@ function bindFileInput({ input, preview, filename, card, label, otherLoaded, set
 
 bindFileInput({
   input: frontFile, preview: frontPreview, filename: frontFilename, card: frontCard,
-  label: "Frontal", otherLoaded: () => !!profileImage, setImage: (v) => (frontImage = v)
+  label: "Frontal",
+  onLoaded: (v) => { frontImage = v; }
 });
 
 bindFileInput({
   input: profileFile, preview: profilePreview, filename: profileFilename, card: profileCard,
-  label: "Side-profile", otherLoaded: () => !!frontImage, setImage: (v) => (profileImage = v)
+  label: "Side-profile",
+  onLoaded: (v) => {
+    profileImage = v;
+    tracer.setImage(v);
+    setStatus("Side-profile photograph loaded. Place the landmarks in the panel below.");
+  }
 });
 
 /* ---------- analyze ---------- */
 
 analyzeButton.addEventListener("click", async () => {
   try {
-    analyzeButton.disabled = true;
+    analyzing = true;
+    updateAnalyzeButton();
     results.classList.add("hidden");
     metricsContainer.innerHTML = "";
 
     setStatus("Detecting face in frontal photograph...");
-    const frontal = await detectFace(frontImage, "frontal");
+    const frontal = await detectFrontalFace(frontImage);
 
-    setStatus("Detecting face in side-profile photograph...");
-    const profile = await detectFace(profileImage, "side-profile");
+    setStatus("Reading traced side-profile landmarks...");
+    const profile = tracer.getPoints();
 
     setStatus("Calculating facial measurements...");
     const raw = calculateMetrics({ frontal, profile, scaleMm: null });
@@ -316,6 +335,7 @@ analyzeButton.addEventListener("click", async () => {
     results.classList.add("hidden");
     setStatus(error.message || "FACET analysis failed.", "error");
   } finally {
+    analyzing = false;
     updateAnalyzeButton();
   }
 });
