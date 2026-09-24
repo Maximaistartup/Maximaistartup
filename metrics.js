@@ -1,9 +1,10 @@
 /* =========================================================
-   FACET METRIC ENGINE  (build 3.1.0)
+   FACET METRIC ENGINE  (build 4.0.0)
    Scale-independent facial geometry.
-   Input landmarks MUST be in pixel space ({x, y}), not the
-   normalized 0..1 space MediaPipe returns; otherwise angles and
-   distances are distorted on non-square images. app.js converts.
+
+   frontal : MediaPipe landmarks in PIXEL space ({x, y})
+   profile : user-traced landmarks in image pixels, keyed by name
+             (glabella, nasion, pronasale, ...) — see tracer.js
 ========================================================= */
 
 /* ---------- geometry ---------- */
@@ -40,10 +41,6 @@ function signedDist(p, a, b) {
   return (dx * (a.y - p.y) - (a.x - p.x) * dy) / n;
 }
 
-/* Lean of segment (lower -> upper) away from vertical, positive = leaning back */
-const fromVertical = (lower, upper) =>
-  lower && upper ? Math.atan2(lower.x - upper.x, lower.y - upper.y) * RAD : NaN;
-
 
 /* ---------- frontal ---------- */
 
@@ -57,7 +54,6 @@ function frontalValues(lm) {
   const lower = d(sn, men);
   const eyeAvg = (d(p(33), p(133)) + d(p(263), p(362))) / 2;
 
-  // outer-end-up tilt of a brow, degrees
   const tilt = (inner, outer) =>
     inner && outer
       ? Math.atan2(inner.y - outer.y, Math.abs(inner.x - outer.x)) * RAD
@@ -80,77 +76,98 @@ function frontalValues(lm) {
 }
 
 
-/* ---------- profile ---------- */
+/* ---------- profile (traced landmarks) ---------- */
 
-/* Mirror so the face always looks toward +x, and pick the camera-facing side.
-   The near-side ear landmark sits farther BACK than the far-side one. */
-function prepareProfile(lm) {
-  let sx = 0;
-  for (const q of lm) sx += q.x;
-  const meanX = sx / lm.length;
-  const facingRight = lm[4].x >= meanX;
-  const pts = lm.map((q) => ({ x: facingRight ? q.x : -q.x, y: q.y }));
-  const sideA = pts[127].x <= pts[356].x;
-  const idx = sideA
-    ? { ear: 127, eye: 33, jaw: 172, ala: 129 }
-    : { ear: 356, eye: 263, jaw: 397, ala: 358 };
-  return { pts, idx };
+const REQUIRED_TRACE = [
+  "glabella", "nasion", "pronasale", "subnasale",
+  "labraleSup", "labraleInf", "sulcus", "pogonion", "menton"
+];
+
+/* Mirror so the face always looks toward +x (the nose tip is in front of nasion). */
+function prepareTrace(pts) {
+  if (!pts) return null;
+  for (const k of REQUIRED_TRACE) if (!pts[k]) return null;
+  const facingRight = pts.pronasale.x >= pts.nasion.x;
+  const out = {};
+  for (const [k, v] of Object.entries(pts)) {
+    if (v) out[k] = { x: facingRight ? v.x : -v.x, y: v.y };
+  }
+  return out;
 }
 
-function profileValues(lm) {
-  const { pts, idx } = prepareProfile(lm);
-  const p = (i) => pts[i];
+function profileValues(traced) {
+  const t = prepareTrace(traced);
+  if (!t) return {};
 
-  const fh = p(10), fore = p(151), gl = p(9), nas = p(168), dors = p(195);
-  const tip = p(4), sn = p(2), ul = p(0), ll = p(17);
-  const sulcus = p(200), pog = p(175), men = p(152);
-  const ear = p(idx.ear), eye = p(idx.eye), jaw = p(idx.jaw), ala = p(idx.ala);
+  const g = t.glabella, nas = t.nasion, tip = t.pronasale, sn = t.subnasale;
+  const ls = t.labraleSup, li = t.labraleInf, sul = t.sulcus;
+  const pog = t.pogonion, men = t.menton;
+  const tri = t.trichion, fm = t.foreheadMid, ala = t.alare;
+  const cerv = t.cervical, neck = t.neckLower, gon = t.gonion;
+  const tra = t.tragus, orb = t.orbitale;
 
-  const F = vec(ear, eye);                       // Frankfort proxy (ear -> orbit)
-  const faceH = d(nas, men);                     // normalizer for all lengths
+  const faceH = d(nas, men);              // normalizer for lengths
   const pct = (v) => ratio(v, faceH) * 100;
-  const lipFront = ul.x >= ll.x ? ul : ll;
+
+  /* Frankfort horizontal from the traced tragus -> orbitale line.
+     F = forward unit vector, U = "up" unit vector (image y points down). */
+  let F = null;
+  let U = null;
+  if (tra && orb) {
+    const v = vec(tra, orb);
+    const n = Math.hypot(v.x, v.y);
+    if (n) {
+      F = { x: v.x / n, y: v.y / n };
+      U = { x: F.y, y: -F.x };
+    }
+  }
+  const along = (v) => (F && v ? v.x * F.x + v.y * F.y : NaN);
+  const upOf = (v) => (F && v ? v.x * U.x + v.y * U.y : NaN);
+
+  /* lean of a segment (lower -> upper) away from the Frankfort-perpendicular,
+     positive = leaning back */
+  const lean = (lower, upper) => {
+    const v = vec(lower, upper);
+    return F && v ? Math.atan2(-along(v), upOf(v)) * RAD : NaN;
+  };
+
+  const lipFront = ls.x >= li.x ? ls : li;
   const sMid = mid(sn, tip);
 
-  const Fn = Math.hypot(F.x, F.y);
-  const recession = Fn
-    ? ((pog.x - nas.x) * F.x + (pog.y - nas.y) * F.y) / Fn
-    : NaN;
-
   return {
-    nasalWH: NaN,                                // needs transverse width
-    noseTipRotation: Math.atan2(sn.y - tip.y, tip.x - sn.x) * RAD,
-    facialConvexityGlabella: angABC(gl, sn, pog),
-    totalFacialConvexity: angABC(gl, tip, pog),
-    submentalCervicalAngle: NaN,                 // needs neck landmarks
-    nasalTipAngle: angABC(dors, tip, sn),
+    nasalWH: NaN,
+    noseTipRotation: F ? Math.atan2(upOf(vec(sn, tip)), along(vec(sn, tip))) * RAD : NaN,
+    facialConvexityGlabella: angABC(g, sn, pog),
+    totalFacialConvexity: angABC(g, tip, pog),
+    submentalCervicalAngle: angABC(men, cerv, neck),
+    nasalTipAngle: angABC(nas, tip, sn),
     facialConvexityNasion: angABC(nas, sn, pog),
-    nasofrontalAngle: angABC(gl, nas, dors),
-    zAngle: angV(F, vec(pog, lipFront)),
-    browridgeInclination: fromVertical(gl, fore),
-    frankfortRecession: pct(recession),
-    upperForeheadSlope: fromVertical(fore, fh),
+    nasofrontalAngle: angABC(g, nas, tip),
+    zAngle: F ? angV(F, vec(pog, lipFront)) : NaN,
+    browridgeInclination: lean(g, fm),
+    frankfortRecession: F ? pct(along(vec(nas, pog))) : NaN,
+    upperForeheadSlope: lean(fm, tri),
     nasomentalAngle: angABC(nas, tip, pog),
-    nasolabialAngle: angABC(tip, sn, ul),
-    orbitalVector: NaN,                          // needs cornea + malar points
-    mandibularPlaneAngle: angV(F, vec(jaw, men)),
-    ramusMandibleRatio: ratio(d(ear, jaw), d(jaw, men)),
-    nasalProjection: ratio(tip.x - ala.x, d(nas, tip)),
-    frankfortTipAngle: angV(F, vec(nas, tip)),
-    gonialAngle: angABC(ear, jaw, men),
-    facialDepthHeightRatio: ratio(d(ear, tip), faceH),
-    interiorMidfaceProjectionAngle: NaN,         // needs malar landmark
-    anteriorFacialDepth: NaN,                    // clinically a mm measure
+    nasolabialAngle: angABC(tip, sn, ls),
+    orbitalVector: NaN,
+    mandibularPlaneAngle: F && gon ? angV(F, vec(gon, men)) : NaN,
+    ramusMandibleRatio: ratio(d(tra, gon), d(gon, men)),
+    nasalProjection: F && ala ? ratio(along(vec(ala, tip)), d(nas, tip)) : NaN,
+    frankfortTipAngle: F ? angV(F, vec(nas, tip)) : NaN,
+    gonialAngle: angABC(tra, gon, men),
+    facialDepthHeightRatio: ratio(d(tra, tip), faceH),
+    interiorMidfaceProjectionAngle: NaN,
+    anteriorFacialDepth: NaN,
     nasofacialAngle: angV(vec(nas, tip), vec(nas, pog)),
-    lowerLipSLine: pct(signedDist(ll, sMid, pog)),
-    upperLipSLine: pct(signedDist(ul, sMid, pog)),
-    lowerLipELine: pct(signedDist(ll, tip, pog)),
-    upperLipELine: pct(signedDist(ul, tip, pog)),
-    lowerLipBurstone: pct(signedDist(ll, sn, pog)),
-    upperLipBurstone: pct(signedDist(ul, sn, pog)),
-    holdawayHLine: pct(signedDist(ll, ul, pog)),
-    mentolabialAngle: angABC(ll, sulcus, pog),
-    gonionMouthLine: ratio(d(jaw, ul), faceH)
+    lowerLipSLine: pct(signedDist(li, sMid, pog)),
+    upperLipSLine: pct(signedDist(ls, sMid, pog)),
+    lowerLipELine: pct(signedDist(li, tip, pog)),
+    upperLipELine: pct(signedDist(ls, tip, pog)),
+    lowerLipBurstone: pct(signedDist(li, sn, pog)),
+    upperLipBurstone: pct(signedDist(ls, sn, pog)),
+    holdawayHLine: pct(signedDist(li, ls, pog)),
+    mentolabialAngle: angABC(li, sul, pog),
+    gonionMouthLine: ratio(d(gon, ls), faceH)
   };
 }
 
@@ -168,6 +185,8 @@ const D = (key, name, category, requires, unit, ideal, description, note = "") =
   unit, ideal, description, note
 });
 
+const FRANKFORT = "Needs the traced tragus and orbitale (Frankfort proxy).";
+
 const DEFS = [
   /* frontal */
   D("facialWidthToHeight", "Facial Width : Height Ratio", "Facial Proportions", "frontal", "ratio", [0.72, 0.88], "Cheek-to-cheek width relative to forehead-to-chin height."),
@@ -183,40 +202,40 @@ const DEFS = [
   D("eyeLevelAsymmetry", "Eye Level Asymmetry", "Symmetry", "frontal", "ratio", [0, 0.025], "Vertical difference between outer eye corners, relative to facial height."),
   D("mouthLevelAsymmetry", "Mouth Level Asymmetry", "Symmetry", "frontal", "ratio", [0, 0.025], "Vertical difference between mouth corners, relative to facial height."),
 
-  /* profile */
+  /* profile (traced) */
   D("nasalWH", "Nasal W : H Ratio", "Nose", "profile", "ratio", [0.65, 0.85], "Nasal width relative to height.", "Unavailable: transverse nasal width cannot be measured from a side profile."),
-  D("noseTipRotation", "Nose Tip Rotation Angle", "Nose", "profile", "deg", [20, 30], "Inclination of the subnasale-to-tip line above horizontal."),
+  D("noseTipRotation", "Nose Tip Rotation Angle", "Nose", "profile", "deg", [20, 30], "Inclination of the subnasale-to-pronasale line above the Frankfort horizontal.", FRANKFORT),
   D("facialConvexityGlabella", "Facial Convexity (Glabella)", "Facial Convexity", "profile", "deg", [165, 175], "Angle glabella - subnasale - pogonion."),
-  D("totalFacialConvexity", "Total Facial Convexity", "Facial Convexity", "profile", "deg", [135, 150], "Angle glabella - nasal tip - pogonion."),
-  D("submentalCervicalAngle", "Submental Cervical Angle", "Jaw / Neck", "profile", "deg", [105, 125], "Angle between the chin-neck and neck lines.", "Unavailable: MediaPipe provides no neck landmarks."),
-  D("nasalTipAngle", "Nasal Tip Angle", "Nose", "profile", "deg", [110, 125], "Angle dorsum - tip - subnasale."),
+  D("totalFacialConvexity", "Total Facial Convexity", "Facial Convexity", "profile", "deg", [135, 150], "Angle glabella - pronasale - pogonion."),
+  D("submentalCervicalAngle", "Submental Cervical Angle", "Jaw / Neck", "profile", "deg", [105, 125], "Angle menton - cervical point - lower neck point.", "Needs the traced cervical point and lower neck point."),
+  D("nasalTipAngle", "Nasal Tip Angle", "Nose", "profile", "deg", [110, 125], "Angle nasion - pronasale - subnasale."),
   D("facialConvexityNasion", "Facial Convexity (Nasion)", "Facial Convexity", "profile", "deg", [165, 175], "Angle nasion - subnasale - pogonion."),
-  D("nasofrontalAngle", "Nasofrontal Angle", "Nose", "profile", "deg", [115, 130], "Angle glabella - nasion - nasal dorsum."),
-  D("zAngle", "Z Angle", "Profile", "profile", "deg", [70, 80], "Angle between the Frankfort proxy (ear to orbit) and the pogonion-to-lip line."),
-  D("browridgeInclination", "Browridge Inclination Angle", "Forehead / Brow", "profile", "deg", [15, 25], "Lean from vertical of the glabella-to-mid-forehead segment."),
-  D("frankfortRecession", "Recession Relative to Frankfort Plane", "Profile", "profile", "pct", [-2, 3], "Pogonion position ahead of nasion along the Frankfort proxy, as % of nasion-menton distance."),
-  D("upperForeheadSlope", "Upper Forehead Slope", "Forehead / Brow", "profile", "deg", [0, 10], "Lean from vertical of the upper forehead segment."),
-  D("nasomentalAngle", "Nasomental Angle", "Nose / Chin", "profile", "deg", [125, 135], "Angle nasion - nasal tip - pogonion."),
-  D("nasolabialAngle", "Nasolabial Angle", "Nose / Lips", "profile", "deg", [95, 110], "Angle nasal tip - subnasale - upper lip."),
-  D("orbitalVector", "Orbital Vector", "Orbit", "profile", "ratio", null, "Globe projection relative to the malar prominence.", "Unavailable: requires corneal and malar landmarks the mesh does not provide."),
-  D("mandibularPlaneAngle", "Mandibular Plane Angle", "Mandible", "profile", "deg", [20, 32], "Angle between the Frankfort proxy and the gonion-to-menton line."),
-  D("ramusMandibleRatio", "Ramus : Mandible Ratio", "Mandible", "profile", "ratio", [0.60, 0.75], "Ear-to-gonion length relative to gonion-to-menton length."),
-  D("nasalProjection", "Nasal Projection (Goode)", "Nose", "profile", "ratio", [0.50, 0.65], "Tip projection ahead of the alar base, relative to nasion-to-tip length."),
-  D("frankfortTipAngle", "Frankfort-tip Angle", "Profile", "profile", "deg", [35, 50], "Angle between the Frankfort proxy and the nasion-to-tip line."),
-  D("gonialAngle", "Gonial Angle", "Mandible", "profile", "deg", [110, 125], "Angle ear-proxy - gonion - menton."),
-  D("facialDepthHeightRatio", "Facial Depth : Height Ratio", "Facial Proportions", "profile", "ratio", [1.15, 1.35], "Ear-to-nasal-tip depth relative to nasion-to-menton height."),
-  D("interiorMidfaceProjectionAngle", "Interior Midface Projection Angle", "Midface", "profile", "deg", null, "Angular projection of the midface.", "Unavailable: requires a malar landmark the mesh does not provide."),
+  D("nasofrontalAngle", "Nasofrontal Angle", "Nose", "profile", "deg", [115, 130], "Angle glabella - nasion - pronasale."),
+  D("zAngle", "Z Angle", "Profile", "profile", "deg", [70, 80], "Angle between the Frankfort horizontal and the pogonion-to-most-forward-lip line.", FRANKFORT),
+  D("browridgeInclination", "Browridge Inclination Angle", "Forehead / Brow", "profile", "deg", [15, 25], "Lean of the glabella-to-mid-forehead segment from the Frankfort perpendicular.", "Needs the traced mid-forehead point plus tragus and orbitale."),
+  D("frankfortRecession", "Recession Relative to Frankfort Plane", "Profile", "profile", "pct", [-2, 3], "Pogonion position ahead of nasion along the Frankfort horizontal, as % of nasion-menton distance.", FRANKFORT),
+  D("upperForeheadSlope", "Upper Forehead Slope", "Forehead / Brow", "profile", "deg", [0, 10], "Lean of the mid-forehead-to-trichion segment from the Frankfort perpendicular.", "Needs the traced trichion and mid-forehead points plus tragus and orbitale."),
+  D("nasomentalAngle", "Nasomental Angle", "Nose / Chin", "profile", "deg", [125, 135], "Angle nasion - pronasale - pogonion."),
+  D("nasolabialAngle", "Nasolabial Angle", "Nose / Lips", "profile", "deg", [95, 110], "Angle pronasale - subnasale - upper lip."),
+  D("orbitalVector", "Orbital Vector", "Orbit", "profile", "ratio", null, "Globe projection relative to the malar prominence.", "Unavailable: requires corneal and malar landmarks that are not traced."),
+  D("mandibularPlaneAngle", "Mandibular Plane Angle", "Mandible", "profile", "deg", [20, 32], "Angle between the Frankfort horizontal and the gonion-to-menton line.", "Needs the traced gonion plus tragus and orbitale."),
+  D("ramusMandibleRatio", "Ramus : Mandible Ratio", "Mandible", "profile", "ratio", [0.60, 0.75], "Tragus-to-gonion length relative to gonion-to-menton length (soft-tissue proxy).", "Needs the traced gonion and tragus."),
+  D("nasalProjection", "Nasal Projection (Goode)", "Nose", "profile", "ratio", [0.50, 0.65], "Tip projection ahead of the alar crease along the Frankfort horizontal, relative to nasion-to-tip length.", "Needs the traced alar crease plus tragus and orbitale."),
+  D("frankfortTipAngle", "Frankfort-tip Angle", "Profile", "profile", "deg", [35, 50], "Angle between the Frankfort horizontal and the nasion-to-pronasale line.", FRANKFORT),
+  D("gonialAngle", "Gonial Angle", "Mandible", "profile", "deg", [110, 125], "Angle tragus - gonion - menton (soft-tissue proxy).", "Needs the traced gonion and tragus."),
+  D("facialDepthHeightRatio", "Facial Depth : Height Ratio", "Facial Proportions", "profile", "ratio", [1.15, 1.35], "Tragus-to-pronasale depth relative to nasion-to-menton height.", "Needs the traced tragus."),
+  D("interiorMidfaceProjectionAngle", "Interior Midface Projection Angle", "Midface", "profile", "deg", null, "Angular projection of the midface.", "Unavailable: requires a malar landmark that is not traced."),
   D("anteriorFacialDepth", "Anterior Facial Depth", "Facial Proportions", "profile", "deg", null, "Anterior facial depth.", "Unavailable: clinically a millimetre measure and cannot be derived without calibration."),
-  D("nasofacialAngle", "Nasofacial Angle", "Nose", "profile", "deg", [29, 35], "Angle between the nasal dorsum and the nasion-pogonion line."),
-  D("lowerLipSLine", "Lower Lip S-Line Position", "Lips", "profile", "pct", [-1.7, 1.7], "Lower lip vs. line from pogonion to the nose-tip/subnasale midpoint. + = ahead of line. % of nasion-menton."),
+  D("nasofacialAngle", "Nasofacial Angle", "Nose", "profile", "deg", [29, 35], "Angle between the nasal dorsum (nasion-pronasale) and the nasion-pogonion line."),
+  D("lowerLipSLine", "Lower Lip S-Line Position", "Lips", "profile", "pct", [-1.7, 1.7], "Lower lip vs. line from pogonion to the pronasale/subnasale midpoint. + = ahead of line. % of nasion-menton."),
   D("upperLipSLine", "Upper Lip S-Line Position", "Lips", "profile", "pct", [-2.5, 0.8], "Upper lip vs. the S-line. + = ahead of line. % of nasion-menton."),
-  D("lowerLipELine", "Lower Lip E-Line Position", "Lips", "profile", "pct", [-3.3, 0.8], "Lower lip vs. nose-tip-to-pogonion line. + = ahead of line. % of nasion-menton."),
+  D("lowerLipELine", "Lower Lip E-Line Position", "Lips", "profile", "pct", [-3.3, 0.8], "Lower lip vs. pronasale-to-pogonion line. + = ahead of line. % of nasion-menton."),
   D("upperLipELine", "Upper Lip E-Line Position", "Lips", "profile", "pct", [-5, 0], "Upper lip vs. the E-line. + = ahead of line. % of nasion-menton."),
   D("lowerLipBurstone", "Lower Lip Burstone Line", "Lips", "profile", "pct", [0.4, 2.3], "Lower lip vs. subnasale-to-pogonion line. + = ahead of line. % of nasion-menton."),
   D("upperLipBurstone", "Upper Lip Burstone Line", "Lips", "profile", "pct", [1.3, 3.0], "Upper lip vs. the Burstone line. + = ahead of line. % of nasion-menton."),
   D("holdawayHLine", "Holdaway H-Line", "Lips / Profile", "profile", "pct", [-1.7, 1.7], "Lower lip vs. line from pogonion to upper lip. % of nasion-menton."),
   D("mentolabialAngle", "Mentolabial Angle", "Lips / Chin", "profile", "deg", [120, 135], "Angle lower lip - mentolabial sulcus - pogonion."),
-  D("gonionMouthLine", "Gonion → Mouth Line", "Mandible / Lips", "profile", "ratio", [0.55, 0.80], "Gonion-to-upper-lip distance relative to nasion-to-menton distance.")
+  D("gonionMouthLine", "Gonion → Mouth Line", "Mandible / Lips", "profile", "ratio", [0.55, 0.80], "Gonion-to-upper-lip distance relative to nasion-to-menton distance.", "Needs the traced gonion.")
 ];
 
 
@@ -232,13 +251,14 @@ function calculateMetrics({ frontal, profile, scaleMm = null } = {}) {
 
   for (const def of DEFS) {
     if (!(def.key in values)) continue;
+    const ok = Number.isFinite(values[def.key]);
     out[def.key] = {
       name: def.name,
       category: def.category,
       value: values[def.key],
       unit: def.unit,
       description: def.description,
-      note: Number.isFinite(values[def.key]) ? "" : def.note,
+      note: ok ? "" : def.note || "A required landmark was not available.",
       requiresFrontal: def.requiresFrontal,
       requiresProfile: def.requiresProfile
     };
