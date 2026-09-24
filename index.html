@@ -1,26 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
   <title>FACET</title>
 
+
   <style>
+
     * {
       box-sizing: border-box;
     }
+
 
     body {
       margin: 0;
       background: #0b0d10;
       color: #f2f3f5;
-      font-family: Arial, Helvetica, sans-serif;
+      font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
     }
+
 
     .app {
       display: flex;
       min-height: 100vh;
     }
+
 
     .sidebar {
       width: 240px;
@@ -29,11 +44,13 @@
       padding: 28px 20px;
     }
 
+
     .logo {
       font-size: 28px;
       font-weight: 800;
       letter-spacing: 2px;
     }
+
 
     .subtitle {
       color: #858d99;
@@ -41,9 +58,11 @@
       margin-top: 5px;
     }
 
+
     .nav {
       margin-top: 40px;
     }
+
 
     .nav-item {
       padding: 12px;
@@ -52,10 +71,12 @@
       margin-bottom: 5px;
     }
 
+
     .nav-item.active {
       background: #1b2028;
       color: white;
     }
+
 
     .main {
       flex: 1;
@@ -63,10 +84,12 @@
       max-width: 1400px;
     }
 
+
     h1 {
       margin: 0;
       font-size: 30px;
     }
+
 
     .description {
       color: #8b939f;
@@ -74,16 +97,21 @@
       margin-bottom: 30px;
     }
 
+
     .upload-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 20px;
     }
 
+
     .upload-card {
       min-height: 300px;
+
       border: 1px dashed #414852;
+
       background: #11151a;
+
       border-radius: 12px;
 
       display: flex;
@@ -92,13 +120,16 @@
       justify-content: center;
 
       padding: 25px;
+
       text-align: center;
     }
+
 
     .upload-card.has-image {
       border-style: solid;
       border-color: #343b45;
     }
+
 
     .upload-title {
       font-size: 18px;
@@ -106,102 +137,146 @@
       margin-bottom: 8px;
     }
 
+
     .upload-description {
       color: #818995;
       font-size: 13px;
       margin-bottom: 20px;
     }
 
+
     .file-input {
       display: none;
     }
 
+
     .upload-button {
       display: inline-block;
+
       padding: 12px 22px;
+
       background: #f2f3f5;
+
       color: #0b0d10;
+
       border-radius: 7px;
+
       font-weight: 700;
+
       cursor: pointer;
+
       user-select: none;
     }
+
 
     .upload-button:hover {
       opacity: 0.88;
     }
 
+
     .preview {
       width: 160px;
       height: 160px;
+
       object-fit: cover;
+
       border-radius: 8px;
+
       margin-bottom: 18px;
+
       display: none;
     }
+
 
     .preview.visible {
       display: block;
     }
 
+
     .filename {
       margin-top: 12px;
+
       color: #737c88;
+
       font-size: 12px;
+
       max-width: 90%;
+
       overflow: hidden;
+
       text-overflow: ellipsis;
+
       white-space: nowrap;
     }
 
+
     .analyze-area {
       display: flex;
+
       align-items: center;
+
       gap: 15px;
+
       margin-top: 22px;
     }
 
+
     .analyze-button {
       border: 0;
+
       padding: 14px 28px;
+
       border-radius: 7px;
+
       background: #f2f3f5;
+
       color: #0b0d10;
+
       font-weight: 700;
+
       font-size: 15px;
+
       cursor: pointer;
     }
+
 
     .analyze-button:disabled {
       opacity: 0.35;
       cursor: not-allowed;
     }
 
+
     #status {
       color: #858e9a;
       font-size: 13px;
     }
 
+
     #status.error {
       color: #ff7777;
     }
 
+
     #status.success {
       color: #7edc9a;
     }
+
 
     .results {
       margin-top: 40px;
       display: none;
     }
 
+
     .results.visible {
       display: block;
     }
 
+
     .results h2 {
       margin-bottom: 5px;
     }
+
 
     .results-description {
       color: #7f8793;
@@ -209,9 +284,11 @@
       margin-bottom: 25px;
     }
 
+
     .category {
       margin-top: 30px;
     }
+
 
     .category-title {
       font-size: 18px;
@@ -219,71 +296,124 @@
       margin-bottom: 12px;
     }
 
+
     .metrics-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+
+      grid-template-columns:
+        repeat(
+          auto-fit,
+          minmax(270px, 1fr)
+        );
+
       gap: 12px;
     }
 
+
     .metric-card {
       background: #11151a;
+
       border: 1px solid #252a32;
+
       border-radius: 10px;
+
       padding: 17px;
     }
 
+
     .metric-name {
       font-weight: 700;
+
       font-size: 14px;
+
       margin-bottom: 14px;
     }
 
+
     .metric-row {
       display: flex;
+
       justify-content: space-between;
+
       gap: 15px;
+
       margin-bottom: 7px;
+
       font-size: 13px;
     }
+
 
     .metric-label {
       color: #7f8793;
     }
 
+
     .metric-value {
       font-weight: 700;
+      text-align: right;
     }
 
-    @media (max-width: 800px) {
+
+    .comparison-within {
+      color: #7edc9a;
+    }
+
+
+    .comparison-outside {
+      color: #ffb36b;
+    }
+
+
+    .comparison-unavailable {
+      color: #737c88;
+    }
+
+
+    @media (
+      max-width: 800px
+    ) {
+
       .sidebar {
         display: none;
       }
+
 
       .main {
         padding: 20px;
       }
 
+
       .upload-grid {
         grid-template-columns: 1fr;
       }
+
     }
+
   </style>
+
 </head>
 
 
 <body>
 
+
 <div class="app">
+
 
   <aside class="sidebar">
 
-    <div class="logo">FACET</div>
+    <div class="logo">
+      FACET
+    </div>
+
 
     <div class="subtitle">
       FACIAL GEOMETRY ANALYSIS
     </div>
 
+
     <div class="nav">
+
       <div class="nav-item active">
         Analysis
       </div>
@@ -295,6 +425,7 @@
       <div class="nav-item">
         Methodology
       </div>
+
     </div>
 
   </aside>
@@ -302,7 +433,11 @@
 
   <main class="main">
 
-    <h1>Facial Analysis</h1>
+
+    <h1>
+      Facial Analysis
+    </h1>
+
 
     <div class="description">
       Upload a frontal and side-profile photograph to calculate facial geometry.
@@ -311,10 +446,6 @@
 
     <div class="upload-grid">
 
-
-      <!-- =====================================================
-           FRONT PHOTO
-           ===================================================== -->
 
       <div
         class="upload-card"
@@ -327,20 +458,16 @@
           alt="Front photograph preview"
         >
 
+
         <div class="upload-title">
           Frontal Photograph
         </div>
+
 
         <div class="upload-description">
           Face looking directly toward the camera
         </div>
 
-
-        <!--
-          IMPORTANT:
-          The label itself opens the file picker.
-          JavaScript is NOT required for this.
-        -->
 
         <input
           class="file-input"
@@ -348,6 +475,7 @@
           type="file"
           accept="image/*"
         >
+
 
         <label
           class="upload-button"
@@ -360,16 +488,10 @@
         <div
           class="filename"
           id="frontFilename"
-        >
-        </div>
+        ></div>
 
       </div>
 
-
-
-      <!-- =====================================================
-           PROFILE PHOTO
-           ===================================================== -->
 
       <div
         class="upload-card"
@@ -382,9 +504,11 @@
           alt="Profile photograph preview"
         >
 
+
         <div class="upload-title">
           Side-Profile Photograph
         </div>
+
 
         <div class="upload-description">
           True side profile, approximately 90°
@@ -398,6 +522,7 @@
           accept="image/*"
         >
 
+
         <label
           class="upload-button"
           for="profileFile"
@@ -409,18 +534,12 @@
         <div
           class="filename"
           id="profileFilename"
-        >
-        </div>
+        ></div>
 
       </div>
 
     </div>
 
-
-
-    <!-- =====================================================
-         ANALYZE
-         ===================================================== -->
 
     <div class="analyze-area">
 
@@ -432,17 +551,13 @@
         Analyze Face
       </button>
 
+
       <div id="status">
-        Add both photographs to begin.
+        Loading analysis engine...
       </div>
 
     </div>
 
-
-
-    <!-- =====================================================
-         RESULTS
-         ===================================================== -->
 
     <section
       id="results"
@@ -453,252 +568,28 @@
         Analysis Complete
       </h2>
 
+
       <div class="results-description">
         Geometric measurements calculated from the uploaded photographs.
       </div>
 
+
       <div id="metricsContainer"></div>
 
     </section>
+
 
   </main>
 
 </div>
 
 
+<script
+  type="module"
+  src="/app.js"
+></script>
 
-<script>
-
-  /*
-   * ============================================================
-   * FILE INPUTS
-   * ============================================================
-   *
-   * These are deliberately completely independent from MediaPipe.
-   *
-   * If MediaPipe fails, the Add Photo buttons still work.
-   */
-
-  const frontFile =
-    document.getElementById("frontFile");
-
-  const profileFile =
-    document.getElementById("profileFile");
-
-
-  const frontPreview =
-    document.getElementById("frontPreview");
-
-  const profilePreview =
-    document.getElementById("profilePreview");
-
-
-  const frontFilename =
-    document.getElementById("frontFilename");
-
-  const profileFilename =
-    document.getElementById("profileFilename");
-
-
-  const frontCard =
-    document.getElementById("frontCard");
-
-  const profileCard =
-    document.getElementById("profileCard");
-
-
-  const analyzeButton =
-    document.getElementById("analyzeButton");
-
-  const status =
-    document.getElementById("status");
-
-
-  let frontImage = null;
-  let profileImage = null;
-
-
-
-  /*
-   * ============================================================
-   * FRONT IMAGE
-   * ============================================================
-   */
-
-  frontFile.addEventListener(
-    "change",
-    function () {
-
-      if (
-        !this.files ||
-        this.files.length === 0
-      ) {
-        return;
-      }
-
-
-      const file =
-        this.files[0];
-
-
-      frontFilename.textContent =
-        file.name;
-
-
-      const reader =
-        new FileReader();
-
-
-      reader.onload =
-        function (event) {
-
-          frontPreview.src =
-            event.target.result;
-
-          frontPreview.classList.add(
-            "visible"
-          );
-
-          frontCard.classList.add(
-            "has-image"
-          );
-
-
-          frontImage =
-            event.target.result;
-
-
-          updateAnalyzeButton();
-
-        };
-
-
-      reader.readAsDataURL(file);
-
-    }
-  );
-
-
-
-  /*
-   * ============================================================
-   * PROFILE IMAGE
-   * ============================================================
-   */
-
-  profileFile.addEventListener(
-    "change",
-    function () {
-
-      if (
-        !this.files ||
-        this.files.length === 0
-      ) {
-        return;
-      }
-
-
-      const file =
-        this.files[0];
-
-
-      profileFilename.textContent =
-        file.name;
-
-
-      const reader =
-        new FileReader();
-
-
-      reader.onload =
-        function (event) {
-
-          profilePreview.src =
-            event.target.result;
-
-          profilePreview.classList.add(
-            "visible"
-          );
-
-          profileCard.classList.add(
-            "has-image"
-          );
-
-
-          profileImage =
-            event.target.result;
-
-
-          updateAnalyzeButton();
-
-        };
-
-
-      reader.readAsDataURL(file);
-
-    }
-  );
-
-
-
-  /*
-   * ============================================================
-   * ENABLE ANALYZE
-   * ============================================================
-   */
-
-  function updateAnalyzeButton() {
-
-    if (
-      frontImage &&
-      profileImage
-    ) {
-
-      analyzeButton.disabled =
-        false;
-
-      status.textContent =
-        "Both photographs loaded. Ready for analysis.";
-
-      status.className =
-        "success";
-
-    }
-
-    else {
-
-      analyzeButton.disabled =
-        true;
-
-    }
-
-  }
-
-
-
-  /*
-   * ============================================================
-   * ANALYZE BUTTON
-   * ============================================================
-   *
-   * We will connect MediaPipe here once we know the basic
-   * upload system is working.
-   */
-
-  analyzeButton.addEventListener(
-    "click",
-    function () {
-
-      status.textContent =
-        "Photos loaded. Face analysis will begin here.";
-
-      status.className =
-        "";
-
-    }
-  );
-
-</script>
 
 </body>
+
 </html>
