@@ -5,7 +5,8 @@ import {
 
 import {
   calculateMetrics,
-  attachIdealRanges
+  attachIdealRanges,
+  getMetricDefinitions
 } from "./metrics.js";
 
 
@@ -16,389 +17,284 @@ const MODEL_URL =
   "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 
 
-const frontFile =
-  document.getElementById("frontFile");
+let faceLandmarker = null;
 
-const profileFile =
-  document.getElementById("profileFile");
-
-const frontPreview =
-  document.getElementById("frontPreview");
-
-const profilePreview =
-  document.getElementById("profilePreview");
-
-const frontFilename =
-  document.getElementById("frontFilename");
-
-const profileFilename =
-  document.getElementById("profileFilename");
-
-const frontCard =
-  document.getElementById("frontCard");
-
-const profileCard =
-  document.getElementById("profileCard");
-
-const analyzeButton =
-  document.getElementById("analyzeButton");
-
-const status =
-  document.getElementById("status");
-
-const results =
-  document.getElementById("results");
-
-const metricsContainer =
-  document.getElementById("metricsContainer");
+let frontImageData = null;
+let profileImageData = null;
 
 
-let frontImage =
-  null;
+/* ---------------------------------------------------------
+   DOM
+--------------------------------------------------------- */
 
-let profileImage =
-  null;
+const frontFile = document.getElementById("frontFile");
+const profileFile = document.getElementById("profileFile");
 
-let faceLandmarker =
-  null;
+const frontPreview = document.getElementById("frontPreview");
+const profilePreview = document.getElementById("profilePreview");
 
-let engineReady =
-  false;
+const frontEmpty = document.getElementById("frontEmpty");
+const profileEmpty = document.getElementById("profileEmpty");
+
+const frontFilename = document.getElementById("frontFilename");
+const profileFilename = document.getElementById("profileFilename");
+
+const frontCard = document.getElementById("frontCard");
+const profileCard = document.getElementById("profileCard");
+
+const analyzeButton = document.getElementById("analyzeButton");
+const status = document.getElementById("status");
+
+const metricsContainer = document.getElementById("metricsContainer");
+const metricLibrary = document.getElementById("metricLibrary");
 
 
-/* =========================================================
+/* ---------------------------------------------------------
    STATUS
-   ========================================================= */
+--------------------------------------------------------- */
 
-function setStatus(
-  message,
-  type = ""
-) {
+function setStatus(message, type = "") {
 
-  status.textContent =
-    message;
+  status.textContent = message;
 
-  status.className =
-    type;
+  status.className = "status";
 
+  if (type) {
+    status.classList.add(type);
+  }
 }
 
 
-/* =========================================================
+/* ---------------------------------------------------------
+   FILE -> DATA URL
+--------------------------------------------------------- */
+
+function readFile(file) {
+
+  return new Promise((resolve, reject) => {
+
+    const reader = new FileReader();
+
+    reader.onload = () => resolve(reader.result);
+
+    reader.onerror = () =>
+      reject(new Error("Could not read the selected photograph."));
+
+    reader.readAsDataURL(file);
+  });
+}
+
+
+/* ---------------------------------------------------------
    IMAGE LOADER
-   ========================================================= */
+--------------------------------------------------------- */
 
-function loadImage(
-  dataURL
-) {
+function loadImage(dataURL) {
 
-  return new Promise(
-    (resolve, reject) => {
+  return new Promise((resolve, reject) => {
 
-      const image =
-        new Image();
+    const image = new Image();
 
-      image.onload =
-        () => resolve(image);
+    image.onload = () => resolve(image);
 
-      image.onerror =
-        () =>
-          reject(
-            new Error(
-              "The uploaded image could not be read."
-            )
-          );
+    image.onerror = () =>
+      reject(new Error("The selected file is not a valid image."));
 
-      image.src =
-        dataURL;
-
-    }
-  );
-
+    image.src = dataURL;
+  });
 }
 
 
-/* =========================================================
-   FILE READER
-   ========================================================= */
+/* ---------------------------------------------------------
+   FILE PREVIEWS
+--------------------------------------------------------- */
 
-function readFile(
-  file
-) {
+frontFile.addEventListener("change", async () => {
 
-  return new Promise(
-    (resolve, reject) => {
+  const file = frontFile.files?.[0];
 
-      const reader =
-        new FileReader();
-
-      reader.onload =
-        () => resolve(
-          reader.result
-        );
-
-      reader.onerror =
-        () =>
-          reject(
-            new Error(
-              "The image file could not be read."
-            )
-          );
-
-      reader.readAsDataURL(
-        file
-      );
-
-    }
-  );
-
-}
-
-
-/* =========================================================
-   MEDIAPIPE INITIALIZATION
-   ========================================================= */
-
-async function initialize() {
+  if (!file) return;
 
   try {
 
-    setStatus(
-      "Loading FACET analysis engine..."
-    );
+    frontImageData = await readFile(file);
 
+    frontPreview.src = frontImageData;
+    frontPreview.classList.add("visible");
+
+    frontEmpty.style.display = "none";
+
+    frontFilename.textContent = file.name;
+
+    frontCard.classList.add("has-image");
+
+    updateAnalyzeButton();
+
+    setStatus("Frontal photograph loaded.");
+
+  } catch (error) {
+
+    setStatus(error.message, "error");
+  }
+});
+
+
+profileFile.addEventListener("change", async () => {
+
+  const file = profileFile.files?.[0];
+
+  if (!file) return;
+
+  try {
+
+    profileImageData = await readFile(file);
+
+    profilePreview.src = profileImageData;
+    profilePreview.classList.add("visible");
+
+    profileEmpty.style.display = "none";
+
+    profileFilename.textContent = file.name;
+
+    profileCard.classList.add("has-image");
+
+    updateAnalyzeButton();
+
+    setStatus("Side-profile photograph loaded.");
+
+  } catch (error) {
+
+    setStatus(error.message, "error");
+  }
+});
+
+
+function updateAnalyzeButton() {
+
+  analyzeButton.disabled =
+    !frontImageData ||
+    !profileImageData ||
+    !faceLandmarker;
+}
+
+
+/* ---------------------------------------------------------
+   MEDIAPIPE
+--------------------------------------------------------- */
+
+async function initializeFaceLandmarker() {
+
+  try {
+
+    setStatus("Loading MediaPipe face model...");
 
     const vision =
-      await FilesetResolver.forVisionTasks(
-        WASM_URL
-      );
-
+      await FilesetResolver.forVisionTasks(WASM_URL);
 
     faceLandmarker =
       await FaceLandmarker.createFromOptions(
         vision,
         {
           baseOptions: {
-            modelAssetPath:
-              MODEL_URL
+            modelAssetPath: MODEL_URL,
+            delegate: "GPU"
           },
 
-          runningMode:
-            "IMAGE",
+          runningMode: "IMAGE",
 
-          numFaces:
-            2,
+          numFaces: 1,
 
-          minFaceDetectionConfidence:
-            0.5,
+          minFaceDetectionConfidence: 0.5,
 
-          minFacePresenceConfidence:
-            0.5
+          minFacePresenceConfidence: 0.5,
+
+          minTrackingConfidence: 0.5
         }
       );
 
+    setStatus("FACET engine ready.");
 
-    engineReady =
-      true;
+    updateAnalyzeButton();
 
+  } catch (gpuError) {
 
-    updateButton();
-
-
-  }
-
-  catch (error) {
-
-    console.error(
-      error
+    console.warn(
+      "GPU MediaPipe initialization failed. Retrying with CPU.",
+      gpuError
     );
-
-    setStatus(
-      "FACET could not load the facial analysis engine. Open the browser console for the exact error.",
-      "error"
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   FRONT PHOTO
-   ========================================================= */
-
-frontFile.addEventListener(
-  "change",
-  async () => {
-
-    if (
-      !frontFile.files ||
-      !frontFile.files[0]
-    ) {
-      return;
-    }
-
 
     try {
 
-      const file =
-        frontFile.files[0];
+      const vision =
+        await FilesetResolver.forVisionTasks(WASM_URL);
 
+      faceLandmarker =
+        await FaceLandmarker.createFromOptions(
+          vision,
+          {
+            baseOptions: {
+              modelAssetPath: MODEL_URL,
+              delegate: "CPU"
+            },
 
-      frontImage =
-        await readFile(
-          file
+            runningMode: "IMAGE",
+
+            numFaces: 1,
+
+            minFaceDetectionConfidence: 0.5,
+
+            minFacePresenceConfidence: 0.5,
+
+            minTrackingConfidence: 0.5
+          }
         );
 
+      setStatus("FACET engine ready.");
 
-      frontPreview.src =
-        frontImage;
+      updateAnalyzeButton();
 
+    } catch (cpuError) {
 
-      frontPreview.classList.add(
-        "visible"
-      );
-
-
-      frontCard.classList.add(
-        "has-image"
-      );
-
-
-      frontFilename.textContent =
-        file.name;
-
-
-      updateButton();
-
-    }
-
-    catch (error) {
+      console.error("FACET MediaPipe initialization failed:", cpuError);
 
       setStatus(
-        error.message,
+        "FACET engine failed to load. Open the browser console for the exact error.",
         "error"
       );
-
     }
-
   }
-);
-
-
-/* =========================================================
-   PROFILE PHOTO
-   ========================================================= */
-
-profileFile.addEventListener(
-  "change",
-  async () => {
-
-    if (
-      !profileFile.files ||
-      !profileFile.files[0]
-    ) {
-      return;
-    }
-
-
-    try {
-
-      const file =
-        profileFile.files[0];
-
-
-      profileImage =
-        await readFile(
-          file
-        );
-
-
-      profilePreview.src =
-        profileImage;
-
-
-      profilePreview.classList.add(
-        "visible"
-      );
-
-
-      profileCard.classList.add(
-        "has-image"
-      );
-
-
-      profileFilename.textContent =
-        file.name;
-
-
-      updateButton();
-
-    }
-
-    catch (error) {
-
-      setStatus(
-        error.message,
-        "error"
-      );
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   BUTTON
-   ========================================================= */
-
-function updateButton() {
-
-  const ready =
-    engineReady &&
-    frontImage &&
-    profileImage;
-
-
-  analyzeButton.disabled =
-    !ready;
-
-
-  if (
-    ready
-  ) {
-
-    setStatus(
-      "Both photographs loaded. Ready for analysis.",
-      "success"
-    );
-
-  }
-
 }
 
 
-/* =========================================================
+/* ---------------------------------------------------------
    FACE DETECTION
-   ========================================================= */
+--------------------------------------------------------- */
 
-async function detectFace(
-  dataURL,
-  description
-) {
+async function detectFace(dataURL, description) {
 
-  const image =
-    await loadImage(
-      dataURL
+  if (!faceLandmarker) {
+
+    throw new Error(
+      "The FACET face-analysis engine has not finished loading."
     );
+  }
 
+  const image = await loadImage(dataURL);
 
-  const result =
-    faceLandmarker.detect(
-      image
+  let result;
+
+  try {
+
+    result = faceLandmarker.detect(image);
+
+  } catch (error) {
+
+    console.error("MediaPipe detection error:", error);
+
+    throw new Error(
+      `FACET could not analyze the ${description} photograph.`
     );
-
+  }
 
   if (
     !result ||
@@ -409,249 +305,163 @@ async function detectFace(
     throw new Error(
       `Please input a human face in the ${description} photograph.`
     );
-
   }
 
-
-  if (
-    result.faceLandmarks.length > 1
-  ) {
+  if (result.faceLandmarks.length > 1) {
 
     throw new Error(
-      `Please input exactly one human face in the ${description} photograph.`
+      `Please use a photograph containing exactly one face in the ${description} photograph.`
     );
-
   }
 
-
   return result.faceLandmarks[0];
-
 }
 
 
-/* =========================================================
-   RENDER ONE METRIC
-   ========================================================= */
+/* ---------------------------------------------------------
+   RENDER METRICS
+--------------------------------------------------------- */
 
-function renderMetric(
-  metric
-) {
+function formatValue(metric) {
+
+  if (!metric || !Number.isFinite(metric.value)) {
+    return "Unavailable";
+  }
+
+  return metric.formattedValue ||
+    `${metric.value}`;
+}
+
+
+function renderMetric(metric) {
 
   const card =
-    document.createElement(
-      "div"
-    );
+    document.createElement("div");
 
-  card.className =
-    "metric-card";
+  card.className = "metric-card";
 
 
-  const title =
-    document.createElement(
-      "div"
-    );
+  const name =
+    document.createElement("div");
 
-  title.className =
-    "metric-name";
+  name.className = "metric-name";
 
-  title.textContent =
-    metric.name ||
-    metric.label ||
-    metric.id ||
-    "Metric";
+  name.textContent =
+    metric.name;
+
+  card.appendChild(name);
 
 
-  card.appendChild(
-    title
-  );
+  if (metric.description) {
 
+    const description =
+      document.createElement("div");
 
-  const valueRow =
-    document.createElement(
-      "div"
-    );
+    description.className =
+      "metric-description";
 
-  valueRow.className =
-    "metric-row";
+    description.textContent =
+      metric.description;
 
-
-  valueRow.innerHTML =
-    `
-      <span class="metric-label">
-        Your result
-      </span>
-
-      <span class="metric-value">
-        ${
-          metric.formattedValue ??
-          (
-            Number.isFinite(metric.value)
-              ? metric.value.toFixed(2)
-              : "Unavailable"
-          )
-        }
-      </span>
-    `;
-
-
-  card.appendChild(
-    valueRow
-  );
-
-
-  const idealRow =
-    document.createElement(
-      "div"
-    );
-
-  idealRow.className =
-    "metric-row";
-
-
-  idealRow.innerHTML =
-    `
-      <span class="metric-label">
-        Reference range
-      </span>
-
-      <span class="metric-value">
-        ${
-          metric.idealText ??
-          "Unavailable"
-        }
-      </span>
-    `;
-
-
-  card.appendChild(
-    idealRow
-  );
-
-
-  const comparisonRow =
-    document.createElement(
-      "div"
-    );
-
-  comparisonRow.className =
-    "metric-row";
-
-
-  let comparisonText =
-    "Unavailable";
-
-
-  if (
-    Number.isFinite(
-      metric.comparison
-    )
-  ) {
-
-    comparisonText =
-      metric.comparison.toFixed(
-        2
-      );
-
+    card.appendChild(description);
   }
 
 
-  comparisonRow.innerHTML =
-    `
+  const resultRow =
+    document.createElement("div");
+
+  resultRow.className =
+    "metric-row";
+
+  resultRow.innerHTML = `
+    <span class="metric-label">Result</span>
+    <span class="metric-value ${
+      metric.available === false
+        ? "unavailable"
+        : metric.status === "within"
+          ? "good"
+          : "outside"
+    }">${formatValue(metric)}</span>
+  `;
+
+  card.appendChild(resultRow);
+
+
+  const referenceRow =
+    document.createElement("div");
+
+  referenceRow.className =
+    "metric-row";
+
+  referenceRow.innerHTML = `
+    <span class="metric-label">Reference</span>
+    <span class="metric-value">
+      ${metric.idealText || "No reference range"}
+    </span>
+  `;
+
+  card.appendChild(referenceRow);
+
+
+  if (metric.available !== false &&
+      Number.isFinite(metric.comparison)) {
+
+    const comparison =
+      document.createElement("div");
+
+    comparison.className =
+      "comparison";
+
+    comparison.innerHTML = `
       <span class="metric-label">
-        Comparison
+        Normalized distance from reference midpoint
       </span>
 
-      <span class="metric-value">
-        ${comparisonText}
+      <span class="comparison-number">
+        ${metric.comparison.toFixed(2)}
       </span>
     `;
 
-
-  card.appendChild(
-    comparisonRow
-  );
+    card.appendChild(comparison);
+  }
 
 
   return card;
-
 }
 
 
-/* =========================================================
-   RENDER RESULTS
-   ========================================================= */
+function renderResults(metrics) {
 
-function renderResults(
-  metrics
-) {
-
-  metricsContainer.innerHTML =
-    "";
+  metricsContainer.innerHTML = "";
 
 
-  const categories =
-    {};
+  const categories = {};
 
-
-  for (
-    const metric of Object.values(
-      metrics
-    )
-  ) {
-
-    if (
-      !metric ||
-      typeof metric !== "object"
-    ) {
-      continue;
-    }
-
+  for (const metric of Object.values(metrics)) {
 
     const category =
-      metric.category ||
-      "Facial Geometry";
+      metric.category || "Other";
 
-
-    if (
-      !categories[category]
-    ) {
-
-      categories[category] =
-        [];
-
+    if (!categories[category]) {
+      categories[category] = [];
     }
 
-
-    categories[category].push(
-      metric
-    );
-
+    categories[category].push(metric);
   }
 
 
-  for (
-    const [
-      categoryName,
-      categoryMetrics
-    ]
-    of Object.entries(
-      categories
-    )
-  ) {
+  for (const [categoryName, categoryMetrics] of
+    Object.entries(categories)) {
 
     const category =
-      document.createElement(
-        "div"
-      );
+      document.createElement("div");
 
     category.className =
       "category";
 
 
     const title =
-      document.createElement(
-        "div"
-      );
+      document.createElement("div");
 
     title.className =
       "category-title";
@@ -659,208 +469,251 @@ function renderResults(
     title.textContent =
       categoryName;
 
-
-    category.appendChild(
-      title
-    );
+    category.appendChild(title);
 
 
     const grid =
-      document.createElement(
-        "div"
-      );
+      document.createElement("div");
 
     grid.className =
       "metrics-grid";
 
 
-    for (
-      const metric
-      of categoryMetrics
-    ) {
+    for (const metric of categoryMetrics) {
 
       grid.appendChild(
-        renderMetric(
-          metric
-        )
+        renderMetric(metric)
       );
-
     }
 
 
-    category.appendChild(
-      grid
-    );
+    category.appendChild(grid);
 
-
-    metricsContainer.appendChild(
-      category
-    );
-
+    metricsContainer.appendChild(category);
   }
-
 }
 
 
-/* =========================================================
-   ANALYZE
-   ========================================================= */
+/* ---------------------------------------------------------
+   METRIC LIBRARY
+--------------------------------------------------------- */
 
-analyzeButton.addEventListener(
-  "click",
-  async () => {
+function renderMetricLibrary() {
 
-    try {
+  if (!metricLibrary) return;
 
-      analyzeButton.disabled =
-        true;
+  metricLibrary.innerHTML = "";
 
+  for (const metric of getMetricDefinitions()) {
 
-      results.classList.remove(
-        "visible"
-      );
+    const item =
+      document.createElement("div");
 
+    item.className =
+      "library-item";
 
-      metricsContainer.innerHTML =
-        "";
+    item.innerHTML = `
+      <strong>${metric.name}</strong>
+      <span>
+        ${metric.requiresProfile
+          ? "Side profile"
+          : "Frontal photograph"}
+      </span>
+    `;
 
-
-      setStatus(
-        "Detecting face in frontal photograph..."
-      );
-
-
-      const frontal =
-        await detectFace(
-          frontImage,
-          "frontal"
-        );
-
-
-      setStatus(
-        "Detecting face in side-profile photograph..."
-      );
-
-
-      const profile =
-        await detectFace(
-          profileImage,
-          "side-profile"
-        );
-
-
-      setStatus(
-        "Calculating facial measurements..."
-      );
-
-
-      /*
-       * IMPORTANT:
-       *
-       * No artificial physical facial width is used here.
-       *
-       * The metric engine receives the actual MediaPipe
-       * landmarks from this individual.
-       *
-       * Ratios and angles are therefore scale-independent.
-       */
-
-      const rawMetrics =
-        calculateMetrics(
-          {
-            frontal,
-            profile,
-
-            scaleMm:
-              null
-          }
-        );
-
-
-      if (
-        !rawMetrics ||
-        Object.keys(
-          rawMetrics
-        ).length === 0
-      ) {
-
-        throw new Error(
-          "No measurements were returned by the FACET metric engine."
-        );
-
-      }
-
-
-      setStatus(
-        "Comparing measurements with reference ranges..."
-      );
-
-
-      const metrics =
-        attachIdealRanges(
-          rawMetrics,
-          "male"
-        );
-
-
-      renderResults(
-        metrics
-      );
-
-
-      results.classList.add(
-        "visible"
-      );
-
-
-      setStatus(
-        "Analysis complete.",
-        "success"
-      );
-
-
-      results.scrollIntoView(
-        {
-          behavior: "smooth",
-          block: "start"
-        }
-      );
-
-    }
-
-    catch (error) {
-
-      console.error(
-        "FACET ERROR:",
-        error
-      );
-
-
-      results.classList.remove(
-        "visible"
-      );
-
-
-      setStatus(
-        error.message ||
-        "FACET analysis failed.",
-        "error"
-      );
-
-    }
-
-    finally {
-
-      updateButton();
-
-    }
-
+    metricLibrary.appendChild(item);
   }
-);
+}
 
 
-/* =========================================================
-   START
-   ========================================================= */
+/* ---------------------------------------------------------
+   ANALYSIS
+--------------------------------------------------------- */
 
-initialize();
+analyzeButton.addEventListener("click", async () => {
+
+  if (!frontImageData || !profileImageData) {
+
+    setStatus(
+      "Please upload both photographs first.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  try {
+
+    analyzeButton.disabled = true;
+
+    metricsContainer.innerHTML = `
+      <div class="info-card">
+        <h3>Analyzing photographs...</h3>
+        <p>
+          Detecting facial landmarks and calculating measurements.
+        </p>
+      </div>
+    `;
+
+
+    setStatus(
+      "Detecting face in frontal photograph..."
+    );
+
+    const frontal =
+      await detectFace(
+        frontImageData,
+        "frontal"
+      );
+
+
+    setStatus(
+      "Detecting face in side-profile photograph..."
+    );
+
+    const profile =
+      await detectFace(
+        profileImageData,
+        "side-profile"
+      );
+
+
+    setStatus(
+      "Calculating facial measurements..."
+    );
+
+
+    /*
+      IMPORTANT:
+      No universal facial-width or physical-size assumption
+      is passed here.
+
+      scaleMm is deliberately null.
+    */
+
+    const rawMetrics =
+      calculateMetrics({
+        frontal,
+        profile,
+        scaleMm: null
+      });
+
+
+    if (
+      !rawMetrics ||
+      Object.keys(rawMetrics).length === 0
+    ) {
+
+      throw new Error(
+        "FACET calculated no facial measurements."
+      );
+    }
+
+
+    setStatus(
+      "Comparing measurements with reference ranges..."
+    );
+
+
+    const metrics =
+      attachIdealRanges(
+        rawMetrics,
+        "male"
+      );
+
+
+    renderResults(metrics);
+
+
+    setStatus(
+      "Analysis complete.",
+      "success"
+    );
+
+
+    document
+      .getElementById("resultsSection")
+      .scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+
+
+  } catch (error) {
+
+    console.error(
+      "FACET ANALYSIS ERROR:",
+      error
+    );
+
+
+    metricsContainer.innerHTML = `
+      <div class="info-card" style="border-color:#5b2929">
+        <h3 style="color:#ff7474">
+          Analysis failed
+        </h3>
+
+        <p>
+          ${error.message || "Unknown FACET error."}
+        </p>
+      </div>
+    `;
+
+
+    setStatus(
+      error.message ||
+      "FACET analysis failed.",
+      "error"
+    );
+
+  } finally {
+
+    updateAnalyzeButton();
+  }
+});
+
+
+/* ---------------------------------------------------------
+   SIDEBAR NAVIGATION
+--------------------------------------------------------- */
+
+const navButtons =
+  document.querySelectorAll(".nav-button");
+
+
+navButtons.forEach(button => {
+
+  button.addEventListener("click", () => {
+
+    const targetId =
+      button.dataset.target;
+
+    const target =
+      document.getElementById(targetId);
+
+    if (!target) return;
+
+
+    navButtons.forEach(item =>
+      item.classList.remove("active")
+    );
+
+    button.classList.add("active");
+
+
+    target.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  });
+});
+
+
+/* ---------------------------------------------------------
+   INITIALIZATION
+--------------------------------------------------------- */
+
+renderMetricLibrary();
+
+initializeFaceLandmarker();
