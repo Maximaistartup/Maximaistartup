@@ -9,20 +9,12 @@ import {
 } from "./metrics.js";
 
 
-/* =========================================================
-   FACET APPLICATION
-   ========================================================= */
+const WASM_URL =
+  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm";
 
 const MODEL_URL =
   "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 
-const WASM_URL =
-  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm";
-
-
-/* =========================================================
-   DOM
-   ========================================================= */
 
 const frontFile =
   document.getElementById("frontFile");
@@ -61,137 +53,33 @@ const metricsContainer =
   document.getElementById("metricsContainer");
 
 
-/* =========================================================
-   STATE
-   ========================================================= */
+let frontImage =
+  null;
 
-let frontImageData = null;
-let profileImageData = null;
+let profileImage =
+  null;
 
-let faceLandmarker = null;
-let mediaPipeReady = false;
+let faceLandmarker =
+  null;
+
+let engineReady =
+  false;
 
 
 /* =========================================================
    STATUS
    ========================================================= */
 
-function setStatus(message, type = "") {
+function setStatus(
+  message,
+  type = ""
+) {
 
-  status.textContent = message;
-  status.className = type;
+  status.textContent =
+    message;
 
-}
-
-
-/* =========================================================
-   INITIALIZE MEDIAPIPE
-   ========================================================= */
-
-async function initializeMediaPipe() {
-
-  try {
-
-    setStatus(
-      "Loading facial landmark model..."
-    );
-
-    const vision =
-      await FilesetResolver.forVisionTasks(
-        WASM_URL
-      );
-
-    faceLandmarker =
-      await FaceLandmarker.createFromOptions(
-        vision,
-        {
-          baseOptions: {
-            modelAssetPath: MODEL_URL
-          },
-
-          runningMode: "IMAGE",
-
-          numFaces: 2,
-
-          minFaceDetectionConfidence: 0.5,
-
-          minFacePresenceConfidence: 0.5,
-
-          minTrackingConfidence: 0.5,
-
-          outputFaceBlendshapes: false,
-
-          outputFacialTransformationMatrixes: false
-        }
-      );
-
-    mediaPipeReady = true;
-
-    if (
-      frontImageData &&
-      profileImageData
-    ) {
-
-      setStatus(
-        "Both photographs loaded. Ready for analysis.",
-        "success"
-      );
-
-    } else {
-
-      setStatus(
-        "Add both photographs to begin."
-      );
-
-    }
-
-  }
-
-  catch (error) {
-
-    console.error(
-      "MediaPipe initialization error:",
-      error
-    );
-
-    mediaPipeReady = false;
-
-    setStatus(
-      "Facial analysis could not be initialized. Check the browser console.",
-      "error"
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   FILE READER
-   ========================================================= */
-
-function readFileAsDataURL(file) {
-
-  return new Promise(
-    (resolve, reject) => {
-
-      const reader =
-        new FileReader();
-
-      reader.onload =
-        () => resolve(reader.result);
-
-      reader.onerror =
-        () => reject(
-          new Error(
-            "Could not read the image file."
-          )
-        );
-
-      reader.readAsDataURL(file);
-
-    }
-  );
+  status.className =
+    type;
 
 }
 
@@ -200,7 +88,9 @@ function readFileAsDataURL(file) {
    IMAGE LOADER
    ========================================================= */
 
-function loadImage(dataURL) {
+function loadImage(
+  dataURL
+) {
 
   return new Promise(
     (resolve, reject) => {
@@ -212,16 +102,123 @@ function loadImage(dataURL) {
         () => resolve(image);
 
       image.onerror =
-        () => reject(
-          new Error(
-            "Could not decode the uploaded image."
-          )
-        );
+        () =>
+          reject(
+            new Error(
+              "The uploaded image could not be read."
+            )
+          );
 
-      image.src = dataURL;
+      image.src =
+        dataURL;
 
     }
   );
+
+}
+
+
+/* =========================================================
+   FILE READER
+   ========================================================= */
+
+function readFile(
+  file
+) {
+
+  return new Promise(
+    (resolve, reject) => {
+
+      const reader =
+        new FileReader();
+
+      reader.onload =
+        () => resolve(
+          reader.result
+        );
+
+      reader.onerror =
+        () =>
+          reject(
+            new Error(
+              "The image file could not be read."
+            )
+          );
+
+      reader.readAsDataURL(
+        file
+      );
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   MEDIAPIPE INITIALIZATION
+   ========================================================= */
+
+async function initialize() {
+
+  try {
+
+    setStatus(
+      "Loading FACET analysis engine..."
+    );
+
+
+    const vision =
+      await FilesetResolver.forVisionTasks(
+        WASM_URL
+      );
+
+
+    faceLandmarker =
+      await FaceLandmarker.createFromOptions(
+        vision,
+        {
+          baseOptions: {
+            modelAssetPath:
+              MODEL_URL
+          },
+
+          runningMode:
+            "IMAGE",
+
+          numFaces:
+            2,
+
+          minFaceDetectionConfidence:
+            0.5,
+
+          minFacePresenceConfidence:
+            0.5
+        }
+      );
+
+
+    engineReady =
+      true;
+
+
+    updateButton();
+
+
+  }
+
+  catch (error) {
+
+    console.error(
+      error
+    );
+
+    setStatus(
+      "FACET could not load the facial analysis engine. Open the browser console for the exact error.",
+      "error"
+    );
+
+  }
 
 }
 
@@ -232,49 +229,54 @@ function loadImage(dataURL) {
 
 frontFile.addEventListener(
   "change",
-  async function () {
+  async () => {
 
     if (
-      !this.files ||
-      this.files.length === 0
+      !frontFile.files ||
+      !frontFile.files[0]
     ) {
       return;
     }
 
+
     try {
 
       const file =
-        this.files[0];
+        frontFile.files[0];
 
-      frontFilename.textContent =
-        file.name;
 
-      frontImageData =
-        await readFileAsDataURL(file);
+      frontImage =
+        await readFile(
+          file
+        );
+
 
       frontPreview.src =
-        frontImageData;
+        frontImage;
+
 
       frontPreview.classList.add(
         "visible"
       );
 
+
       frontCard.classList.add(
         "has-image"
       );
 
-      updateAnalyzeButton();
+
+      frontFilename.textContent =
+        file.name;
+
+
+      updateButton();
 
     }
 
     catch (error) {
 
-      console.error(error);
-
-      frontImageData = null;
-
       setStatus(
-        "Could not load the frontal photograph.",
+        error.message,
         "error"
       );
 
@@ -290,49 +292,54 @@ frontFile.addEventListener(
 
 profileFile.addEventListener(
   "change",
-  async function () {
+  async () => {
 
     if (
-      !this.files ||
-      this.files.length === 0
+      !profileFile.files ||
+      !profileFile.files[0]
     ) {
       return;
     }
 
+
     try {
 
       const file =
-        this.files[0];
+        profileFile.files[0];
 
-      profileFilename.textContent =
-        file.name;
 
-      profileImageData =
-        await readFileAsDataURL(file);
+      profileImage =
+        await readFile(
+          file
+        );
+
 
       profilePreview.src =
-        profileImageData;
+        profileImage;
+
 
       profilePreview.classList.add(
         "visible"
       );
 
+
       profileCard.classList.add(
         "has-image"
       );
 
-      updateAnalyzeButton();
+
+      profileFilename.textContent =
+        file.name;
+
+
+      updateButton();
 
     }
 
     catch (error) {
 
-      console.error(error);
-
-      profileImageData = null;
-
       setStatus(
-        "Could not load the side-profile photograph.",
+        error.message,
         "error"
       );
 
@@ -343,41 +350,28 @@ profileFile.addEventListener(
 
 
 /* =========================================================
-   BUTTON STATE
+   BUTTON
    ========================================================= */
 
-function updateAnalyzeButton() {
+function updateButton() {
+
+  const ready =
+    engineReady &&
+    frontImage &&
+    profileImage;
+
 
   analyzeButton.disabled =
-    !(
-      frontImageData &&
-      profileImageData
-    );
+    !ready;
+
 
   if (
-    frontImageData &&
-    profileImageData
+    ready
   ) {
 
-    if (mediaPipeReady) {
-
-      setStatus(
-        "Both photographs loaded. Ready for analysis.",
-        "success"
-      );
-
-    } else {
-
-      setStatus(
-        "Both photographs loaded. Loading analysis engine..."
-      );
-
-    }
-
-  } else {
-
     setStatus(
-      "Add both photographs to begin."
+      "Both photographs loaded. Ready for analysis.",
+      "success"
     );
 
   }
@@ -386,303 +380,119 @@ function updateAnalyzeButton() {
 
 
 /* =========================================================
-   RUN FACELANDMARKER
+   FACE DETECTION
    ========================================================= */
 
 async function detectFace(
   dataURL,
-  photoName
+  description
 ) {
 
   const image =
-    await loadImage(dataURL);
-
-
-  const mpImage =
-    await import(
-      "@mediapipe/tasks-vision"
+    await loadImage(
+      dataURL
     );
 
 
-  const imageObject =
-    new mpImage.MPImage(
+  const result =
+    faceLandmarker.detect(
       image
     );
 
 
-  let detectionResult;
-
-  try {
-
-    detectionResult =
-      faceLandmarker.detect(
-        imageObject
-      );
-
-  }
-
-  finally {
-
-    try {
-
-      imageObject.close();
-
-    }
-
-    catch (_) {}
-
-  }
-
-
   if (
-    !detectionResult ||
-    !detectionResult.faceLandmarks
+    !result ||
+    !result.faceLandmarks ||
+    result.faceLandmarks.length === 0
   ) {
 
     throw new Error(
-      `Please input a human face in the ${photoName} photograph.`
+      `Please input a human face in the ${description} photograph.`
     );
 
   }
 
 
-  const faces =
-    detectionResult.faceLandmarks;
-
-
   if (
-    faces.length === 0
+    result.faceLandmarks.length > 1
   ) {
 
     throw new Error(
-      `Please input a human face in the ${photoName} photograph.`
+      `Please input exactly one human face in the ${description} photograph.`
     );
 
   }
 
 
-  if (
-    faces.length > 1
-  ) {
-
-    throw new Error(
-      `Please input exactly one human face in the ${photoName} photograph.`
-    );
-
-  }
-
-
-  return {
-    landmarks: faces[0],
-    image
-  };
+  return result.faceLandmarks[0];
 
 }
 
 
 /* =========================================================
-   SCALE ESTIMATION
-   =========================================================
-
-   MediaPipe coordinates are normalized 0–1 values.
-
-   Facial measurements that are ratios or angles do not
-   require an absolute physical scale.
-
-   For millimetre-based measurements we use an operational
-   reference scale derived from the detected facial width.
-
-   This is NOT a clinical anthropometric calibration.
+   RENDER ONE METRIC
    ========================================================= */
 
-function estimateScaleMm(
-  landmarks
-) {
-
-  const leftFace =
-    landmarks[234];
-
-  const rightFace =
-    landmarks[454];
-
-  if (
-    !leftFace ||
-    !rightFace
-  ) {
-
-    return null;
-
-  }
-
-  const width =
-    Math.sqrt(
-      Math.pow(
-        leftFace.x - rightFace.x,
-        2
-      ) +
-      Math.pow(
-        leftFace.y - rightFace.y,
-        2
-      ) +
-      Math.pow(
-        leftFace.z - rightFace.z,
-        2
-      )
-    );
-
-
-  if (
-    !Number.isFinite(width) ||
-    width <= 0
-  ) {
-
-    return null;
-
-  }
-
-
-  /*
-    Operational facial-width reference.
-
-    This allows the metric engine to produce a consistent
-    normalized millimetre-like value from photographs.
-
-    It should not be interpreted as a clinically calibrated
-    anthropometric measurement.
-  */
-
-  const referenceFaceWidthMm = 140;
-
-  return (
-    referenceFaceWidthMm /
-    width
-  );
-
-}
-
-
-/* =========================================================
-   METRIC FORMATTING
-   ========================================================= */
-
-function formatValue(
-  value
-) {
-
-  if (
-    typeof value !== "number" ||
-    !Number.isFinite(value)
-  ) {
-
-    return "Unavailable";
-
-  }
-
-
-  return value.toFixed(2);
-
-}
-
-
-/* =========================================================
-   STATUS COLOR
-   ========================================================= */
-
-function statusClass(
-  metric
-) {
-
-  if (
-    !metric ||
-    !Number.isFinite(metric.value)
-  ) {
-
-    return "unavailable";
-
-  }
-
-
-  if (
-    typeof metric.comparison === "number" &&
-    metric.comparison <= 1
-  ) {
-
-    return "within";
-
-  }
-
-
-  return "outside";
-
-}
-
-
-/* =========================================================
-   METRIC CARD
-   ========================================================= */
-
-function createMetricCard(
+function renderMetric(
   metric
 ) {
 
   const card =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
   card.className =
     "metric-card";
 
 
-  const name =
-    document.createElement("div");
+  const title =
+    document.createElement(
+      "div"
+    );
 
-  name.className =
+  title.className =
     "metric-name";
 
-  name.textContent =
+  title.textContent =
     metric.name ||
     metric.label ||
     metric.id ||
     "Metric";
 
 
-  card.appendChild(name);
+  card.appendChild(
+    title
+  );
 
 
   const valueRow =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
   valueRow.className =
     "metric-row";
 
 
-  const valueLabel =
-    document.createElement("span");
+  valueRow.innerHTML =
+    `
+      <span class="metric-label">
+        Your result
+      </span>
 
-  valueLabel.className =
-    "metric-label";
+      <span class="metric-value">
+        ${
+          metric.formattedValue ??
+          (
+            Number.isFinite(metric.value)
+              ? metric.value.toFixed(2)
+              : "Unavailable"
+          )
+        }
+      </span>
+    `;
 
-  valueLabel.textContent =
-    "Your result";
-
-
-  const value =
-    document.createElement("span");
-
-  value.className =
-    "metric-value";
-
-  value.textContent =
-    metric.formattedValue ||
-    formatValue(metric.value);
-
-
-  valueRow.appendChild(
-    valueLabel
-  );
-
-  valueRow.appendChild(
-    value
-  );
 
   card.appendChild(
     valueRow
@@ -690,40 +500,28 @@ function createMetricCard(
 
 
   const idealRow =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
   idealRow.className =
     "metric-row";
 
 
-  const idealLabel =
-    document.createElement("span");
+  idealRow.innerHTML =
+    `
+      <span class="metric-label">
+        Reference range
+      </span>
 
-  idealLabel.className =
-    "metric-label";
+      <span class="metric-value">
+        ${
+          metric.idealText ??
+          "Unavailable"
+        }
+      </span>
+    `;
 
-  idealLabel.textContent =
-    "Reference range";
-
-
-  const ideal =
-    document.createElement("span");
-
-  ideal.className =
-    "metric-value";
-
-  ideal.textContent =
-    metric.idealText ||
-    "Unavailable";
-
-
-  idealRow.appendChild(
-    idealLabel
-  );
-
-  idealRow.appendChild(
-    ideal
-  );
 
   card.appendChild(
     idealRow
@@ -731,52 +529,43 @@ function createMetricCard(
 
 
   const comparisonRow =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
   comparisonRow.className =
     "metric-row";
 
 
-  const comparisonLabel =
-    document.createElement("span");
-
-  comparisonLabel.className =
-    "metric-label";
-
-  comparisonLabel.textContent =
-    "Comparison";
-
-
-  const comparison =
-    document.createElement("span");
-
-  comparison.className =
-    `metric-value comparison-${statusClass(metric)}`;
+  let comparisonText =
+    "Unavailable";
 
 
   if (
-    typeof metric.comparison === "number" &&
-    Number.isFinite(metric.comparison)
+    Number.isFinite(
+      metric.comparison
+    )
   ) {
 
-    comparison.textContent =
-      metric.comparison.toFixed(2);
-
-  } else {
-
-    comparison.textContent =
-      "Unavailable";
+    comparisonText =
+      metric.comparison.toFixed(
+        2
+      );
 
   }
 
 
-  comparisonRow.appendChild(
-    comparisonLabel
-  );
+  comparisonRow.innerHTML =
+    `
+      <span class="metric-label">
+        Comparison
+      </span>
 
-  comparisonRow.appendChild(
-    comparison
-  );
+      <span class="metric-value">
+        ${comparisonText}
+      </span>
+    `;
+
 
   card.appendChild(
     comparisonRow
@@ -789,29 +578,15 @@ function createMetricCard(
 
 
 /* =========================================================
-   METRIC RESULTS
+   RENDER RESULTS
    ========================================================= */
 
-function renderMetrics(
+function renderResults(
   metrics
 ) {
 
-  metricsContainer.innerHTML = "";
-
-
-  const entries =
-    Object.entries(metrics);
-
-
-  if (
-    entries.length === 0
-  ) {
-
-    throw new Error(
-      "No facial measurements were returned."
-    );
-
-  }
+  metricsContainer.innerHTML =
+    "";
 
 
   const categories =
@@ -819,16 +594,16 @@ function renderMetrics(
 
 
   for (
-    const [key, metric] of entries
+    const metric of Object.values(
+      metrics
+    )
   ) {
 
     if (
       !metric ||
       typeof metric !== "object"
     ) {
-
       continue;
-
     }
 
 
@@ -841,7 +616,8 @@ function renderMetrics(
       !categories[category]
     ) {
 
-      categories[category] = [];
+      categories[category] =
+        [];
 
     }
 
@@ -854,19 +630,28 @@ function renderMetrics(
 
 
   for (
-    const [categoryName, categoryMetrics]
-    of Object.entries(categories)
+    const [
+      categoryName,
+      categoryMetrics
+    ]
+    of Object.entries(
+      categories
+    )
   ) {
 
     const category =
-      document.createElement("div");
+      document.createElement(
+        "div"
+      );
 
     category.className =
       "category";
 
 
     const title =
-      document.createElement("div");
+      document.createElement(
+        "div"
+      );
 
     title.className =
       "category-title";
@@ -881,18 +666,23 @@ function renderMetrics(
 
 
     const grid =
-      document.createElement("div");
+      document.createElement(
+        "div"
+      );
 
     grid.className =
       "metrics-grid";
 
 
     for (
-      const metric of categoryMetrics
+      const metric
+      of categoryMetrics
     ) {
 
       grid.appendChild(
-        createMetricCard(metric)
+        renderMetric(
+          metric
+        )
       );
 
     }
@@ -913,55 +703,27 @@ function renderMetrics(
 
 
 /* =========================================================
-   ANALYSIS
+   ANALYZE
    ========================================================= */
 
 analyzeButton.addEventListener(
   "click",
-  async function () {
-
-    if (
-      !frontImageData ||
-      !profileImageData
-    ) {
-
-      setStatus(
-        "Please add both photographs.",
-        "error"
-      );
-
-      return;
-
-    }
-
-
-    if (
-      !mediaPipeReady ||
-      !faceLandmarker
-    ) {
-
-      setStatus(
-        "Facial analysis engine is still loading.",
-        "error"
-      );
-
-      return;
-
-    }
-
-
-    analyzeButton.disabled =
-      true;
-
-    results.classList.remove(
-      "visible"
-    );
-
-    metricsContainer.innerHTML =
-      "";
-
+  async () => {
 
     try {
+
+      analyzeButton.disabled =
+        true;
+
+
+      results.classList.remove(
+        "visible"
+      );
+
+
+      metricsContainer.innerHTML =
+        "";
+
 
       setStatus(
         "Detecting face in frontal photograph..."
@@ -970,7 +732,7 @@ analyzeButton.addEventListener(
 
       const frontal =
         await detectFace(
-          frontImageData,
+          frontImage,
           "frontal"
         );
 
@@ -982,53 +744,48 @@ analyzeButton.addEventListener(
 
       const profile =
         await detectFace(
-          profileImageData,
+          profileImage,
           "side-profile"
         );
 
 
       setStatus(
-        "Calculating facial geometry..."
+        "Calculating facial measurements..."
       );
 
 
-      const frontalScale =
-        estimateScaleMm(
-          frontal.landmarks
-        );
-
-
-      const profileScale =
-        estimateScaleMm(
-          profile.landmarks
-        );
-
-
-      const scaleMm =
-        frontalScale ||
-        profileScale ||
-        null;
-
+      /*
+       * IMPORTANT:
+       *
+       * No artificial physical facial width is used here.
+       *
+       * The metric engine receives the actual MediaPipe
+       * landmarks from this individual.
+       *
+       * Ratios and angles are therefore scale-independent.
+       */
 
       const rawMetrics =
-        calculateMetrics({
-          frontal:
-            frontal.landmarks,
+        calculateMetrics(
+          {
+            frontal,
+            profile,
 
-          profile:
-            profile.landmarks,
-
-          scaleMm
-        });
+            scaleMm:
+              null
+          }
+        );
 
 
       if (
         !rawMetrics ||
-        typeof rawMetrics !== "object"
+        Object.keys(
+          rawMetrics
+        ).length === 0
       ) {
 
         throw new Error(
-          "The metric engine did not return any measurements."
+          "No measurements were returned by the FACET metric engine."
         );
 
       }
@@ -1046,7 +803,7 @@ analyzeButton.addEventListener(
         );
 
 
-      renderMetrics(
+      renderResults(
         metrics
       );
 
@@ -1062,19 +819,19 @@ analyzeButton.addEventListener(
       );
 
 
-      window.scrollTo({
-        top:
-          results.offsetTop - 30,
-        behavior:
-          "smooth"
-      });
+      results.scrollIntoView(
+        {
+          behavior: "smooth",
+          block: "start"
+        }
+      );
 
     }
 
     catch (error) {
 
       console.error(
-        "FACET analysis error:",
+        "FACET ERROR:",
         error
       );
 
@@ -1086,7 +843,7 @@ analyzeButton.addEventListener(
 
       setStatus(
         error.message ||
-        "Facial analysis failed.",
+        "FACET analysis failed.",
         "error"
       );
 
@@ -1094,11 +851,7 @@ analyzeButton.addEventListener(
 
     finally {
 
-      analyzeButton.disabled =
-        !(
-          frontImageData &&
-          profileImageData
-        );
+      updateButton();
 
     }
 
@@ -1110,4 +863,4 @@ analyzeButton.addEventListener(
    START
    ========================================================= */
 
-initializeMediaPipe();
+initialize();
