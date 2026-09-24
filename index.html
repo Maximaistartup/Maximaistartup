@@ -6,108 +6,211 @@
   <title>FACET — Facial Geometry Analysis</title>
 
   <style>
+    :root {
+      --bg: #090b0f;
+      --panel: #11151b;
+      --panel2: #151a21;
+      --line: #29303a;
+      --text: #f4f6f8;
+      --muted: #8b94a1;
+      --green: #9cf5bd;
+      --orange: #ffb86b;
+      --red: #ff7474;
+    }
+
     * {
       box-sizing: border-box;
     }
 
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
       margin: 0;
-      background: #0b0d10;
-      color: #f2f3f5;
-      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Arial,
+        sans-serif;
+    }
+
+    button,
+    input {
+      font: inherit;
     }
 
     .app {
-      display: flex;
       min-height: 100vh;
+      display: flex;
     }
 
+    /* SIDEBAR */
+
     .sidebar {
-      width: 240px;
-      background: #101318;
-      border-right: 1px solid #252a32;
-      padding: 28px 20px;
+      width: 245px;
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      background: #0d1015;
+      border-right: 1px solid var(--line);
+      padding: 28px 18px;
+      z-index: 10;
     }
 
     .logo {
-      font-size: 28px;
+      font-size: 25px;
       font-weight: 800;
-      letter-spacing: 2px;
+      letter-spacing: 3px;
+      padding: 0 12px 5px;
     }
 
-    .subtitle {
-      color: #858d99;
-      font-size: 11px;
-      margin-top: 5px;
+    .logo-subtitle {
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 1.4px;
+      padding: 0 12px 35px;
     }
 
     .nav {
-      margin-top: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
-    .nav-item {
-      padding: 12px;
-      color: #9da5b1;
-      border-radius: 7px;
-      margin-bottom: 5px;
+    .nav-button {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      padding: 12px 13px;
+      border-radius: 9px;
+      text-align: left;
+      cursor: pointer;
+      transition: 0.15s;
     }
 
-    .nav-item.active {
-      background: #1b2028;
+    .nav-button:hover {
+      background: #171b22;
       color: white;
     }
 
+    .nav-button.active {
+      background: #1a1f27;
+      color: white;
+    }
+
+    .sidebar-note {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 22px;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.5;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    /* MAIN */
+
     .main {
-      flex: 1;
-      padding: 40px;
+      margin-left: 245px;
+      width: calc(100% - 245px);
       max-width: 1500px;
+      padding: 42px 48px 80px;
+    }
+
+    .header {
+      margin-bottom: 30px;
+    }
+
+    .eyebrow {
+      color: var(--green);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
     }
 
     h1 {
       margin: 0;
-      font-size: 30px;
+      font-size: 38px;
+      letter-spacing: -1.5px;
     }
 
     .description {
-      color: #8b939f;
       margin-top: 8px;
-      margin-bottom: 30px;
+      color: var(--muted);
+      font-size: 14px;
     }
+
+    /* UPLOADS */
 
     .upload-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 20px;
+      gap: 18px;
     }
 
     .upload-card {
-      min-height: 300px;
-      border: 1px dashed #414852;
-      background: #11151a;
-      border-radius: 12px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 25px;
-      text-align: center;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 20px;
+      min-height: 350px;
     }
 
     .upload-card.has-image {
-      border-style: solid;
-      border-color: #343b45;
+      border-color: #39414c;
     }
 
-    .upload-title {
-      font-size: 18px;
+    .upload-heading {
+      font-size: 15px;
       font-weight: 700;
-      margin-bottom: 8px;
+      margin-bottom: 5px;
     }
 
-    .upload-description {
-      color: #818995;
-      font-size: 13px;
-      margin-bottom: 20px;
+    .upload-subheading {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 18px;
+    }
+
+    .preview-wrapper {
+      height: 220px;
+      border: 1px dashed #343c47;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: #0c0f14;
+      margin-bottom: 15px;
+    }
+
+    .preview {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      display: none;
+      object-fit: contain;
+    }
+
+    .preview.visible {
+      display: block;
+    }
+
+    .empty-preview {
+      color: #59626e;
+      font-size: 12px;
     }
 
     .file-input {
@@ -116,57 +219,44 @@
 
     .upload-button {
       display: inline-block;
-      padding: 12px 22px;
-      background: #f2f3f5;
-      color: #0b0d10;
+      padding: 10px 17px;
       border-radius: 7px;
+      background: #f0f2f4;
+      color: #090b0f;
+      font-size: 13px;
       font-weight: 700;
       cursor: pointer;
-      user-select: none;
     }
 
     .upload-button:hover {
-      opacity: 0.88;
-    }
-
-    .preview {
-      width: 160px;
-      height: 160px;
-      object-fit: cover;
-      border-radius: 8px;
-      margin-bottom: 18px;
-      display: none;
-    }
-
-    .preview.visible {
-      display: block;
+      opacity: 0.86;
     }
 
     .filename {
-      margin-top: 12px;
-      color: #737c88;
-      font-size: 12px;
-      max-width: 90%;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 11px;
       overflow: hidden;
-      text-overflow: ellipsis;
       white-space: nowrap;
+      text-overflow: ellipsis;
     }
 
-    .analyze-area {
+    /* ANALYZE */
+
+    .analysis-bar {
+      margin-top: 18px;
       display: flex;
       align-items: center;
       gap: 15px;
-      margin-top: 22px;
     }
 
     .analyze-button {
       border: 0;
-      padding: 14px 28px;
-      border-radius: 7px;
-      background: #f2f3f5;
-      color: #0b0d10;
-      font-weight: 700;
-      font-size: 15px;
+      border-radius: 8px;
+      padding: 13px 24px;
+      background: var(--green);
+      color: #07100b;
+      font-weight: 800;
       cursor: pointer;
     }
 
@@ -175,103 +265,190 @@
       cursor: not-allowed;
     }
 
-    #status {
-      color: #858e9a;
-      font-size: 13px;
+    .status {
+      font-size: 12px;
+      color: var(--muted);
     }
 
-    #status.error {
-      color: #ff7777;
+    .status.success {
+      color: var(--green);
     }
 
-    #status.success {
-      color: #7edc9a;
+    .status.error {
+      color: var(--red);
     }
 
-    .results {
-      margin-top: 40px;
-      display: none;
+    /* RESULTS */
+
+    .results-section {
+      margin-top: 42px;
+      scroll-margin-top: 25px;
     }
 
-    .results.visible {
-      display: block;
+    .section-header {
+      margin-bottom: 18px;
     }
 
-    .results h2 {
-      margin-bottom: 5px;
+    .section-number {
+      color: var(--green);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      font-weight: 700;
     }
 
-    .results-description {
-      color: #7f8793;
-      font-size: 13px;
-      margin-bottom: 25px;
+    .section-title {
+      font-size: 25px;
+      font-weight: 750;
+      margin-top: 5px;
+    }
+
+    .section-description {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 5px;
     }
 
     .category {
-      margin-top: 30px;
+      margin-top: 28px;
     }
 
     .category-title {
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 700;
-      margin-bottom: 12px;
+      margin-bottom: 11px;
     }
 
     .metrics-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+      gap: 11px;
     }
 
     .metric-card {
-      background: #11151a;
-      border: 1px solid #252a32;
-      border-radius: 10px;
-      padding: 17px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      padding: 16px;
     }
 
     .metric-name {
-      font-weight: 700;
       font-size: 14px;
-      margin-bottom: 14px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .metric-description {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+      margin-bottom: 13px;
     }
 
     .metric-row {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: 1fr auto;
       gap: 15px;
-      margin-bottom: 7px;
-      font-size: 13px;
+      margin: 6px 0;
+      font-size: 12px;
     }
 
     .metric-label {
-      color: #7f8793;
+      color: var(--muted);
     }
 
     .metric-value {
-      font-weight: 700;
       text-align: right;
+      font-weight: 700;
     }
 
-    .within {
-      color: #7edc9a;
+    .metric-value.good {
+      color: var(--green);
     }
 
-    .outside {
-      color: #ffb36b;
+    .metric-value.outside {
+      color: var(--orange);
     }
 
-    .unavailable {
-      color: #737c88;
+    .metric-value.unavailable {
+      color: #69727f;
     }
 
-    @media (max-width: 800px) {
+    .comparison {
+      margin-top: 11px;
+      padding-top: 11px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .comparison-number {
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    /* METRICS LIBRARY */
+
+    .info-section {
+      margin-top: 70px;
+      padding-top: 35px;
+      border-top: 1px solid var(--line);
+      scroll-margin-top: 25px;
+    }
+
+    .info-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      padding: 22px;
+      margin-top: 15px;
+    }
+
+    .info-card h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .info-card p {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .metric-library {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 8px;
+      margin-top: 15px;
+    }
+
+    .library-item {
+      border: 1px solid var(--line);
+      background: #0d1116;
+      border-radius: 8px;
+      padding: 11px;
+      font-size: 11px;
+    }
+
+    .library-item strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .library-item span {
+      color: var(--muted);
+    }
+
+    @media (max-width: 850px) {
       .sidebar {
         display: none;
       }
 
       .main {
-        padding: 20px;
+        margin-left: 0;
+        width: 100%;
+        padding: 25px 18px 60px;
       }
 
       .upload-grid {
@@ -286,110 +463,113 @@
 <div class="app">
 
   <aside class="sidebar">
+
     <div class="logo">FACET</div>
+    <div class="logo-subtitle">FACIAL GEOMETRY ANALYSIS</div>
 
-    <div class="subtitle">
-      FACIAL GEOMETRY ANALYSIS
+    <nav class="nav">
+      <button class="nav-button active" data-target="analysisSection">
+        Analysis
+      </button>
+
+      <button class="nav-button" data-target="metricsSection">
+        Metrics
+      </button>
+
+      <button class="nav-button" data-target="methodologySection">
+        Methodology
+      </button>
+    </nav>
+
+    <div class="sidebar-note">
+      Measurements are geometric estimates from detected facial landmarks.
+      They are not clinical diagnoses.
     </div>
 
-    <div class="nav">
-      <div class="nav-item active">Analysis</div>
-      <div class="nav-item">Metrics</div>
-      <div class="nav-item">Methodology</div>
-    </div>
   </aside>
-
 
   <main class="main">
 
-    <h1>Facial Analysis</h1>
+    <header class="header" id="analysisSection">
+      <div class="eyebrow">FACIAL GEOMETRY PLATFORM</div>
+      <h1>Facial Analysis</h1>
+      <div class="description">
+        Detect facial landmarks and calculate scale-independent facial proportions and angles.
+      </div>
+    </header>
 
-    <div class="description">
-      Upload a frontal and side-profile photograph to calculate facial geometry.
-    </div>
-
+    <!-- PHOTOS -->
 
     <div class="upload-grid">
 
-      <div class="upload-card" id="frontCard">
+      <section class="upload-card" id="frontCard">
 
-        <img
-          id="frontPreview"
-          class="preview"
-          alt="Front photograph"
-        >
-
-        <div class="upload-title">
+        <div class="upload-heading">
           Frontal Photograph
         </div>
 
-        <div class="upload-description">
-          Face looking directly toward the camera
+        <div class="upload-subheading">
+          Face looking directly toward the camera.
+        </div>
+
+        <div class="preview-wrapper">
+          <img id="frontPreview" class="preview" alt="Frontal photograph">
+          <div id="frontEmpty" class="empty-preview">
+            No photograph selected
+          </div>
         </div>
 
         <input
-          class="file-input"
           id="frontFile"
+          class="file-input"
           type="file"
           accept="image/*"
         >
 
-        <label
-          class="upload-button"
-          for="frontFile"
-        >
+        <label class="upload-button" for="frontFile">
           Add Photo
         </label>
 
-        <div
-          class="filename"
-          id="frontFilename"
-        ></div>
+        <div id="frontFilename" class="filename"></div>
 
-      </div>
+      </section>
 
 
-      <div class="upload-card" id="profileCard">
+      <section class="upload-card" id="profileCard">
 
-        <img
-          id="profilePreview"
-          class="preview"
-          alt="Side-profile photograph"
-        >
-
-        <div class="upload-title">
+        <div class="upload-heading">
           Side-Profile Photograph
         </div>
 
-        <div class="upload-description">
-          True side profile, approximately 90°
+        <div class="upload-subheading">
+          True approximately 90° side profile.
+        </div>
+
+        <div class="preview-wrapper">
+          <img id="profilePreview" class="preview" alt="Side-profile photograph">
+          <div id="profileEmpty" class="empty-preview">
+            No photograph selected
+          </div>
         </div>
 
         <input
-          class="file-input"
           id="profileFile"
+          class="file-input"
           type="file"
           accept="image/*"
         >
 
-        <label
-          class="upload-button"
-          for="profileFile"
-        >
+        <label class="upload-button" for="profileFile">
           Add Photo
         </label>
 
-        <div
-          class="filename"
-          id="profileFilename"
-        ></div>
+        <div id="profileFilename" class="filename"></div>
 
-      </div>
+      </section>
 
     </div>
 
-
-    <div class="analyze-area">
+    <div class="analysis-bar">
 
       <button
         id="analyzeButton"
@@ -399,34 +579,139 @@
         Analyze Face
       </button>
 
-      <div id="status">
-        Loading FACET analysis engine...
+      <div id="status" class="status">
+        Loading FACET engine...
       </div>
 
     </div>
 
 
+    <!-- RESULTS ARE ALWAYS HERE -->
+
     <section
-      id="results"
-      class="results"
+      id="resultsSection"
+      class="results-section"
     >
 
-      <h2>
-        Analysis Complete
-      </h2>
+      <div class="section-header">
 
-      <div class="results-description">
-        Measurements calculated directly from the detected facial landmarks.
+        <div class="section-number">
+          01 / RESULTS
+        </div>
+
+        <div class="section-title">
+          Measurement Breakdown
+        </div>
+
+        <div class="section-description">
+          Every result is calculated from the detected landmarks of the uploaded photographs.
+        </div>
+
       </div>
 
-      <div id="metricsContainer"></div>
+      <div id="metricsContainer">
+
+        <div class="info-card">
+          <h3>Waiting for photographs</h3>
+          <p>
+            Upload both photographs and press Analyze Face.
+            The complete measurement breakdown will appear here.
+          </p>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- METRICS -->
+
+    <section
+      id="metricsSection"
+      class="info-section"
+    >
+
+      <div class="section-number">
+        02 / METRIC LIBRARY
+      </div>
+
+      <div class="section-title">
+        Metrics
+      </div>
+
+      <div class="section-description">
+        The measurements FACET can calculate from frontal and profile landmarks.
+      </div>
+
+      <div id="metricLibrary" class="metric-library"></div>
+
+    </section>
+
+
+    <!-- METHODOLOGY -->
+
+    <section
+      id="methodologySection"
+      class="info-section"
+    >
+
+      <div class="section-number">
+        03 / METHODOLOGY
+      </div>
+
+      <div class="section-title">
+        Methodology
+      </div>
+
+      <div class="info-card">
+
+        <h3>1. Landmark detection</h3>
+
+        <p>
+          FACET uses MediaPipe Face Landmarker to identify facial landmarks
+          directly from the uploaded photographs.
+        </p>
+
+        <h3>2. Individual geometry</h3>
+
+        <p>
+          Measurements are derived from the individual's own landmark geometry.
+          FACET does not assume that every person's face has the same physical
+          width or that every photograph was taken from the same distance.
+        </p>
+
+        <h3>3. Ratios and angles</h3>
+
+        <p>
+          Whenever possible, distances are expressed relative to another
+          landmark distance on the same face and angles are calculated directly
+          from landmark coordinates. This makes the calculation independent of
+          image size.
+        </p>
+
+        <h3>4. Reference ranges</h3>
+
+        <p>
+          Reference ranges are displayed separately from the measured value.
+          The comparison number represents mathematical distance from the
+          reference interval and is not an attractiveness score.
+        </p>
+
+        <h3>5. Unavailable measurements</h3>
+
+        <p>
+          A measurement is marked unavailable when the necessary anatomical
+          information cannot be obtained reliably from an ordinary frontal or
+          profile photograph. FACET does not invent missing measurements.
+        </p>
+
+      </div>
 
     </section>
 
   </main>
 
 </div>
-
 
 <script type="module" src="./app.js"></script>
 
