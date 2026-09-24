@@ -1,786 +1,474 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>FACET — Facial Analysis</title>
 
-
     <style>
-
         * {
             box-sizing: border-box;
         }
 
-
         body {
-
             margin: 0;
-
-            background:
-                #09090b;
-
-            color: #ffffff;
-
-            font-family:
-                -apple-system,
-                BlinkMacSystemFont,
-                "Segoe UI",
-                Arial,
-                sans-serif;
-
+            font-family: Arial, sans-serif;
+            background: #0f1115;
+            color: white;
         }
 
-
-        .container {
-
-            width: min(
-                1100px,
-                calc(100% - 40px)
-            );
-
-            margin: 0 auto;
-
-            padding: 50px 0 80px;
-
+        header {
+            padding: 30px;
+            text-align: center;
         }
-
 
         h1 {
-
             margin: 0;
-
-            font-size: 48px;
-
-            letter-spacing: -2px;
-
+            font-size: 36px;
         }
-
 
         .subtitle {
-
             margin-top: 8px;
-
-            color: #8e8e93;
-
-            font-size: 16px;
-
+            color: #9ca3af;
         }
 
+        main {
+            width: min(1100px, 92%);
+            margin: auto;
+            padding-bottom: 60px;
+        }
 
         .upload-box {
-
-            margin-top: 40px;
-
-            padding: 45px;
-
-            border:
-                1px dashed #3a3a3f;
-
-            border-radius: 18px;
-
+            background: #181b22;
+            border: 1px solid #292e38;
+            border-radius: 16px;
+            padding: 25px;
             text-align: center;
-
-            background: #111114;
-
         }
-
-
-        .upload-box h2 {
-
-            margin-top: 0;
-
-            font-size: 24px;
-
-        }
-
-
-        .upload-box p {
-
-            color: #8e8e93;
-
-        }
-
 
         input[type="file"] {
-
-            margin-top: 20px;
-
-            color: white;
-
+            margin-top: 15px;
         }
-
 
         #status {
-
-            margin-top: 20px;
-
-            color: #8e8e93;
-
+            margin-top: 15px;
+            color: #9ca3af;
         }
-
 
         .viewer {
-
-            display: none;
-
-            margin-top: 30px;
-
             position: relative;
-
-            background: #111114;
-
-            border-radius: 18px;
-
-            padding: 15px;
-
-            overflow: hidden;
-
+            margin-top: 30px;
+            text-align: center;
         }
 
-
-        #inputImage {
-
-            display: block;
-
-            width: 100%;
-
-            max-height: 650px;
-
-            object-fit: contain;
-
-            border-radius: 10px;
-
+        #image {
+            max-width: 100%;
+            max-height: 700px;
+            display: none;
+            margin: auto;
+            border-radius: 12px;
         }
-
 
         #landmarkCanvas {
-
             position: absolute;
-
-            top: 15px;
-
-            left: 15px;
-
-            width: calc(100% - 30px);
-
-            height: calc(100% - 30px);
-
             pointer-events: none;
-
+            display: none;
         }
-
-
-        .section-title {
-
-            margin-top: 45px;
-
-            margin-bottom: 18px;
-
-            font-size: 20px;
-
-            font-weight: 600;
-
-        }
-
 
         .metrics {
-
+            margin-top: 30px;
             display: grid;
-
-            grid-template-columns:
-                repeat(
-                    auto-fit,
-                    minmax(230px, 1fr)
-                );
-
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 15px;
-
         }
 
-
-        .card {
-
-            padding: 22px;
-
-            border:
-                1px solid #29292e;
-
-            border-radius: 15px;
-
-            background: #111114;
-
+        .metric {
+            background: #181b22;
+            border: 1px solid #292e38;
+            border-radius: 14px;
+            padding: 18px;
         }
-
 
         .metric-name {
-
-            color: #8e8e93;
-
-            font-size: 13px;
-
-            text-transform: uppercase;
-
-            letter-spacing: 0.5px;
-
+            color: #9ca3af;
+            font-size: 14px;
+            margin-bottom: 8px;
         }
-
 
         .metric-value {
-
-            margin-top: 9px;
-
-            font-size: 30px;
-
-            font-weight: 600;
-
+            font-size: 24px;
+            font-weight: bold;
         }
 
+        .success {
+            color: #4ade80 !important;
+        }
 
         .error {
-
-            color: #ff6b6b !important;
-
+            color: #f87171 !important;
         }
-
-
-        @media (max-width: 600px) {
-
-            .container {
-
-                width:
-                    calc(100% - 25px);
-
-                padding-top: 30px;
-
-            }
-
-            h1 {
-
-                font-size: 38px;
-
-            }
-
-            .upload-box {
-
-                padding: 30px 20px;
-
-            }
-
-        }
-
     </style>
-
 </head>
-
 
 <body>
 
-
-<div class="container">
-
-
+<header>
     <h1>FACET</h1>
-
-
     <div class="subtitle">
-
-        Facial geometry analysis powered by
-        computer vision.
-
+        Objective facial geometry analysis
     </div>
+</header>
 
-
-    <!-- ================================================= -->
-    <!-- UPLOAD -->
-    <!-- ================================================= -->
+<main>
 
     <div class="upload-box">
 
-        <h2>
-            Upload a frontal photograph
-        </h2>
-
-
-        <p>
-
-            Use a clear photograph with
-            your entire face visible.
-
-        </p>
-
+        <h2>Upload a frontal photograph</h2>
 
         <input
-            id="imageUpload"
+            id="imageInput"
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/*"
         >
-
 
         <div id="status">
-
             Initializing facial analysis...
-
         </div>
 
     </div>
 
+    <div class="viewer">
 
-    <!-- ================================================= -->
-    <!-- IMAGE -->
-    <!-- ================================================= -->
+        <img id="image" alt="Uploaded face">
 
-    <div
-        id="viewer"
-        class="viewer"
-    >
-
-        <img
-            id="inputImage"
-            alt="Uploaded face"
-        >
-
-
-        <canvas
-            id="landmarkCanvas"
-        ></canvas>
+        <canvas id="landmarkCanvas"></canvas>
 
     </div>
-
-
-    <!-- ================================================= -->
-    <!-- METRICS -->
-    <!-- ================================================= -->
-
-    <div class="section-title">
-
-        Facial Proportions
-
-    </div>
-
 
     <div class="metrics">
 
-
-        <div class="card">
-
+        <div class="metric">
             <div class="metric-name">
-
                 Facial Width / Height
-
             </div>
-
-            <div
-                class="metric-value"
-                id="widthHeight"
-            >
+            <div id="facialWidthHeight" class="metric-value">
                 —
             </div>
-
         </div>
 
-
-        <div class="card">
-
+        <div class="metric">
             <div class="metric-name">
-
                 Facial Width
-
             </div>
-
-            <div
-                class="metric-value"
-                id="facialWidth"
-            >
+            <div id="facialWidth" class="metric-value">
                 —
             </div>
-
         </div>
 
-
-        <div class="card">
-
+        <div class="metric">
             <div class="metric-name">
-
                 Facial Height
-
             </div>
-
-            <div
-                class="metric-value"
-                id="facialHeight"
-            >
+            <div id="facialHeight" class="metric-value">
                 —
             </div>
-
         </div>
 
-    </div>
-
-
-    <div class="section-title">
-
-        Eyes
-
-    </div>
-
-
-    <div class="metrics">
-
-
-        <div class="card">
-
+        <div class="metric">
             <div class="metric-name">
-
                 One Eye Apart Ratio
-
             </div>
-
-            <div
-                class="metric-value"
-                id="oneEyeApart"
-            >
+            <div id="oneEyeApart" class="metric-value">
                 —
             </div>
-
         </div>
 
-
-        <div class="card">
-
+        <div class="metric">
             <div class="metric-name">
-
                 Eye Separation / Face Width
-
             </div>
-
-            <div
-                class="metric-value"
-                id="eyeSeparation"
-            >
+            <div id="eyeSeparation" class="metric-value">
                 —
             </div>
-
         </div>
 
-
-        <div class="card">
-
+        <div class="metric">
             <div class="metric-name">
-
                 IPD / Face Width
-
             </div>
-
-            <div
-                class="metric-value"
-                id="ipdFace"
-            >
+            <div id="interpupillaryFace" class="metric-value">
                 —
             </div>
-
         </div>
 
-    </div>
-
-
-    <div class="section-title">
-
-        Nose & Mouth
-
-    </div>
-
-
-    <div class="metrics">
-
-
-        <div class="card">
-
+        <div class="metric">
             <div class="metric-name">
-
                 Nose Width / Face Width
-
             </div>
-
-            <div
-                class="metric-value"
-                id="noseFace"
-            >
+            <div id="noseFace" class="metric-value">
                 —
             </div>
-
         </div>
 
-
-        <div class="card">
-
+        <div class="metric">
             <div class="metric-name">
-
                 Mouth Width / Face Width
-
             </div>
-
-            <div
-                class="metric-value"
-                id="mouthFace"
-            >
+            <div id="mouthFace" class="metric-value">
                 —
             </div>
-
         </div>
 
-
-        <div class="card">
-
+        <div class="metric">
             <div class="metric-name">
-
                 Nose Width / Mouth Width
-
             </div>
-
-            <div
-                class="metric-value"
-                id="noseMouth"
-            >
+            <div id="noseMouth" class="metric-value">
                 —
             </div>
-
         </div>
 
-    </div>
-
-
-    <div class="section-title">
-
-        Symmetry
-
-    </div>
-
-
-    <div class="metrics">
-
-
-        <div class="card">
-
+        <div class="metric">
             <div class="metric-name">
-
                 Nose Deviation
-
             </div>
-
-            <div
-                class="metric-value"
-                id="noseDeviation"
-            >
+            <div id="noseDeviation" class="metric-value">
                 —
             </div>
-
         </div>
 
-
-        <div class="card">
-
+        <div class="metric">
             <div class="metric-name">
-
                 Chin Deviation
-
             </div>
-
-            <div
-                class="metric-value"
-                id="chinDeviation"
-            >
+            <div id="chinDeviation" class="metric-value">
                 —
             </div>
-
         </div>
 
-
-        <div class="card">
-
+        <div class="metric">
             <div class="metric-name">
-
                 Detection Status
-
             </div>
-
-            <div
-                class="metric-value"
-                id="detectionStatus"
-            >
+            <div id="detectionStatus" class="metric-value">
                 —
             </div>
-
         </div>
 
     </div>
 
+</main>
 
-</div>
-
-
-<!-- ===================================================== -->
-<!-- MEDIAPIPE + FACET -->
-<!-- ===================================================== -->
 
 <script type="module">
 
 import {
     FaceLandmarker,
-    FilesetResolver
-}
-from
-"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22";
+    FilesetResolver,
+    DrawingUtils
+} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.mjs";
 
 
 import {
     calculateMetrics
-}
-from "./metrics.js";
+} from "./metrics.js";
 
 
-// ========================================================
-// ELEMENTS
-// ========================================================
+const MODEL_URL =
+    "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 
-const upload =
-    document.getElementById(
-        "imageUpload"
-    );
 
-const image =
-    document.getElementById(
-        "inputImage"
-    );
+let faceLandmarker = null;
 
-const viewer =
-    document.getElementById(
-        "viewer"
-    );
 
 const status =
-    document.getElementById(
-        "status"
-    );
+    document.getElementById("status");
+
+const imageInput =
+    document.getElementById("imageInput");
+
+const image =
+    document.getElementById("image");
 
 const canvas =
-    document.getElementById(
-        "landmarkCanvas"
-    );
+    document.getElementById("landmarkCanvas");
 
 const ctx =
     canvas.getContext("2d");
 
 
-// ========================================================
-// MEDIAPIPE
-// ========================================================
-
-let faceLandmarker = null;
-
-
-async function initializeMediaPipe() {
+async function initializeFaceLandmarker() {
 
     try {
 
         status.textContent =
             "Loading MediaPipe...";
 
+        console.log(
+            "FACET: Loading MediaPipe vision..."
+        );
+
 
         const vision =
             await FilesetResolver.forVisionTasks(
-                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
             );
+
+
+        console.log(
+            "FACET: WASM loaded",
+            vision
+        );
+
+
+        status.textContent =
+            "Loading face model...";
 
 
         faceLandmarker =
             await FaceLandmarker.createFromOptions(
                 vision,
                 {
-
                     baseOptions: {
+                        modelAssetPath: MODEL_URL,
 
-                        modelAssetPath:
-                            "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-
-                        delegate: "GPU"
-
+                        // CPU for maximum compatibility.
+                        delegate: "CPU"
                     },
-
 
                     runningMode: "IMAGE",
 
                     numFaces: 1,
 
+                    minFaceDetectionConfidence: 0.5,
 
-                    minFaceDetectionConfidence:
-                        0.5,
+                    minFacePresenceConfidence: 0.5,
 
-                    minFacePresenceConfidence:
-                        0.5,
+                    minTrackingConfidence: 0.5,
 
-                    minTrackingConfidence:
-                        0.5,
+                    outputFaceBlendshapes: false,
 
-
-                    outputFaceBlendshapes:
-                        false,
-
-                    outputFacialTransformationMatrixes:
-                        true
-
+                    outputFacialTransformationMatrixes: true
                 }
             );
+
+
+        console.log(
+            "FACET: FaceLandmarker initialized",
+            faceLandmarker
+        );
 
 
         status.textContent =
             "Ready — upload a frontal photograph.";
 
+        status.classList.add("success");
 
-        console.log(
-            "FACET: MediaPipe ready."
-        );
-
-    }
-
-
-    catch (error) {
+    } catch (error) {
 
         console.error(
-            "FACET MediaPipe initialization error:",
+            "FACET INITIALIZATION ERROR:",
             error
         );
 
-
         status.textContent =
-            "MediaPipe failed to load. Open the browser console for details.";
+            "MediaPipe failed to initialize. Check the browser console.";
 
-        status.classList.add(
-            "error"
-        );
-
+        status.classList.add("error");
     }
-
 }
 
 
-// Start MediaPipe.
+function displayMetric(
+    id,
+    value,
+    decimals = 4
+) {
 
-initializeMediaPipe();
+    const element =
+        document.getElementById(id);
+
+    if (!element) return;
 
 
-// ========================================================
-// IMAGE UPLOAD
-// ========================================================
+    if (
+        value === null ||
+        value === undefined ||
+        Number.isNaN(value)
+    ) {
 
-upload.addEventListener(
+        element.textContent = "—";
+
+        return;
+    }
+
+
+    element.textContent =
+        Number(value).toFixed(decimals);
+}
+
+
+function drawLandmarks(
+    landmarks
+) {
+
+    const drawingUtils =
+        new DrawingUtils(ctx);
+
+
+    canvas.width =
+        image.clientWidth;
+
+    canvas.height =
+        image.clientHeight;
+
+
+    canvas.style.width =
+        image.clientWidth + "px";
+
+    canvas.style.height =
+        image.clientHeight + "px";
+
+
+    canvas.style.display =
+        "block";
+
+
+    canvas.style.left =
+        image.offsetLeft + "px";
+
+    canvas.style.top =
+        image.offsetTop + "px";
+
+
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+
+    drawingUtils.drawConnectors(
+        landmarks,
+        FaceLandmarker.FACE_LANDMARKS_TESSELATION,
+        {
+            lineWidth: 0.5
+        }
+    );
+
+
+    drawingUtils.drawLandmarks(
+        landmarks,
+        {
+            radius: 1
+        }
+    );
+}
+
+
+imageInput.addEventListener(
     "change",
     async (event) => {
 
@@ -788,49 +476,35 @@ upload.addEventListener(
             event.target.files[0];
 
 
-        if (!file) {
-            return;
-        }
+        if (!file) return;
 
-
-        // ------------------------------------------------
-        // CHECK MEDIAPIPE
-        // ------------------------------------------------
 
         if (!faceLandmarker) {
 
             status.textContent =
-                "The facial analysis model is still loading. Please wait a moment and try again.";
+                "Face analysis is still initializing.";
 
             return;
-
         }
 
-
-        // ------------------------------------------------
-        // CHECK FILE
-        // ------------------------------------------------
 
         if (!file.type.startsWith("image/")) {
 
             status.textContent =
-                "Please upload an image.";
+                "Please select an image file.";
 
             return;
-
         }
 
 
-        // ------------------------------------------------
-        // LOAD IMAGE
-        // ------------------------------------------------
-
         status.classList.remove(
+            "success",
             "error"
         );
 
+
         status.textContent =
-            "Loading photograph...";
+            "Analyzing face...";
 
 
         const imageURL =
@@ -841,75 +515,38 @@ upload.addEventListener(
             imageURL;
 
 
-        try {
-
-            await new Promise(
-                (resolve, reject) => {
-
-                    image.onload =
-                        resolve;
-
-                    image.onerror =
-                        reject;
-
-                }
-            );
-
-        }
-
-        catch (error) {
-
-            console.error(error);
-
-            status.textContent =
-                "The image could not be loaded.";
-
-            status.classList.add(
-                "error"
-            );
-
-            URL.revokeObjectURL(
-                imageURL
-            );
-
-            return;
-
-        }
-
-
-        // ------------------------------------------------
-        // SHOW IMAGE
-        // ------------------------------------------------
-
-        viewer.style.display =
+        image.style.display =
             "block";
 
 
-        // ------------------------------------------------
-        // RUN MEDIAPIPE
-        // ------------------------------------------------
+        await new Promise(
+            (resolve, reject) => {
 
-        status.textContent =
-            "Analyzing face...";
+                image.onload =
+                    resolve;
+
+                image.onerror =
+                    reject;
+            }
+        );
 
 
         try {
 
-            const result =
-                faceLandmarker.detect(
-                    image
-                );
-
-
             console.log(
-                "FACET MediaPipe result:",
-                result
+                "FACET: Running face detection..."
             );
 
 
-            // --------------------------------------------
-            // CHECK FACE
-            // --------------------------------------------
+            const result =
+                faceLandmarker.detect(image);
+
+
+            console.log(
+                "FACET: Detection result:",
+                result
+            );
+
 
             if (
                 !result.faceLandmarks ||
@@ -917,34 +554,25 @@ upload.addEventListener(
             ) {
 
                 status.textContent =
-                    "No face detected. Try a clear frontal photograph.";
+                    "No face detected.";
 
                 status.classList.add(
                     "error"
                 );
 
                 return;
-
             }
 
-
-            // --------------------------------------------
-            // GET FIRST FACE
-            // --------------------------------------------
 
             const landmarks =
                 result.faceLandmarks[0];
 
 
             console.log(
-                "FACET landmarks:",
+                "FACET: Landmarks:",
                 landmarks
             );
 
-
-            // --------------------------------------------
-            // CALCULATE METRICS
-            // --------------------------------------------
 
             const metrics =
                 calculateMetrics(
@@ -953,250 +581,124 @@ upload.addEventListener(
 
 
             console.log(
-                "FACET metrics:",
+                "FACET: Metrics:",
                 metrics
             );
 
 
-            // --------------------------------------------
-            // DISPLAY RESULTS
-            // --------------------------------------------
-
-            setMetric(
-                "widthHeight",
-                metrics.facialWidthHeight,
-                3
+            displayMetric(
+                "facialWidthHeight",
+                metrics.facialWidthHeight
             );
 
 
-            setMetric(
+            displayMetric(
                 "facialWidth",
-                metrics.facialWidth,
-                4
+                metrics.facialWidth
             );
 
 
-            setMetric(
+            displayMetric(
                 "facialHeight",
-                metrics.facialHeight,
-                4
+                metrics.facialHeight
             );
 
 
-            setMetric(
+            displayMetric(
                 "oneEyeApart",
-                metrics.oneEyeApart,
-                3
+                metrics.oneEyeApart
             );
 
 
-            setMetric(
+            displayMetric(
                 "eyeSeparation",
-                metrics.eyeSeparation,
-                4
+                metrics.eyeSeparation
             );
 
 
-            setMetric(
-                "ipdFace",
-                metrics.interpupillaryFace,
-                4
+            displayMetric(
+                "interpupillaryFace",
+                metrics.interpupillaryFace
             );
 
 
-            setMetric(
+            displayMetric(
                 "noseFace",
-                metrics.noseFace,
-                4
+                metrics.noseFace
             );
 
 
-            setMetric(
+            displayMetric(
                 "mouthFace",
-                metrics.mouthFace,
-                4
+                metrics.mouthFace
             );
 
 
-            setMetric(
+            displayMetric(
                 "noseMouth",
-                metrics.noseMouth,
-                4
+                metrics.noseMouth
             );
 
 
-            setMetric(
+            displayMetric(
                 "noseDeviation",
-                metrics.noseDeviation,
-                5
+                metrics.noseDeviation
             );
 
 
-            setMetric(
+            displayMetric(
                 "chinDeviation",
-                metrics.chinDeviation,
-                5
+                metrics.chinDeviation
             );
 
-
-            document.getElementById(
-                "detectionStatus"
-            ).textContent =
-                "Detected";
-
-
-            // --------------------------------------------
-            // DRAW LANDMARKS
-            // --------------------------------------------
 
             drawLandmarks(
                 landmarks
             );
 
 
+            document.getElementById(
+                "detectionStatus"
+            ).textContent =
+                "Face detected";
+
+
             status.textContent =
                 "Analysis complete.";
+
+            status.classList.add(
+                "success"
+            );
 
 
             URL.revokeObjectURL(
                 imageURL
             );
 
-        }
 
-
-        catch (error) {
+        } catch (error) {
 
             console.error(
-                "FACET analysis error:",
+                "FACET ANALYSIS ERROR:",
                 error
             );
 
 
             status.textContent =
-                "Analysis failed. Check the browser console for the error.";
+                "Analysis failed. Check the browser console.";
 
             status.classList.add(
                 "error"
             );
-
         }
 
     }
 );
 
 
-// ========================================================
-// DISPLAY HELPER
-// ========================================================
-
-function setMetric(
-    elementId,
-    value,
-    decimals
-) {
-
-    const element =
-        document.getElementById(
-            elementId
-        );
-
-
-    if (
-        value === null ||
-        value === undefined ||
-        !Number.isFinite(value)
-    ) {
-
-        element.textContent =
-            "—";
-
-        return;
-
-    }
-
-
-    element.textContent =
-        value.toFixed(
-            decimals
-        );
-
-}
-
-
-// ========================================================
-// LANDMARK DRAWING
-// ========================================================
-
-function drawLandmarks(
-    landmarks
-) {
-
-    const rect =
-        image.getBoundingClientRect();
-
-
-    const width =
-        image.clientWidth;
-
-    const height =
-        image.clientHeight;
-
-
-    canvas.width =
-        width;
-
-    canvas.height =
-        height;
-
-
-    ctx.clearRect(
-        0,
-        0,
-        width,
-        height
-    );
-
-
-    ctx.fillStyle =
-        "white";
-
-
-    for (
-        const landmark
-        of landmarks
-    ) {
-
-        const x =
-            landmark.x *
-            width;
-
-        const y =
-            landmark.y *
-            height;
-
-
-        ctx.beginPath();
-
-
-        ctx.arc(
-            x,
-            y,
-            1.5,
-            0,
-            Math.PI * 2
-        );
-
-
-        ctx.fill();
-
-    }
-
-}
+initializeFaceLandmarker();
 
 </script>
 
-
 </body>
-
 </html>
