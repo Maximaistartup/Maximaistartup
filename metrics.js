@@ -1655,13 +1655,14 @@ export function getMetricDefinition(key) {
     metric => metric.key === key
   );
 }
-
-calculateMetrics
-attachIdealRanges
-getMetricDefinition
-getMetricsByCategory
-getProfileMetrics
-getFrontalMetrics
+export {
+  calculateMetrics,
+  attachIdealRanges,
+  getMetricDefinition,
+  getMetricsByCategory,
+  getProfileMetrics,
+  getFrontalMetrics
+};
 // ============================================================
 // END OF FACET METRICS ENGINE
 // ============================================================
